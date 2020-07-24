@@ -2,14 +2,21 @@
 from __future__ import division, print_function, unicode_literals
 
 import objc
-from GlyphsApp import Glyphs, MOUSEDOWN, MOUSEUP
-from GlyphsApp.plugins import *
-from GlyphsApp.plugins import ReporterPlugin, SelectTool
-from AppKit import NSAffineTransform, NSApplication, NSAlternateKeyMask, \
-    NSBezierPath, NSClassFromString, NSColor, NSCommandKeyMask, NSFont, \
-    NSFontAttributeName, NSForegroundColorAttributeName, NSMakeRect, \
-    NSMenuItem, NSMutableParagraphStyle, NSPoint, NSRect, NSShiftKeyMask, \
-    NSString
+from GlyphsApp import Glyphs, MOUSEDOWN, MOUSEUP, MOUSEMOVED
+
+# from GlyphsApp.plugins import *
+from GlyphsApp.plugins import ReporterPlugin
+from AppKit import (
+    NSBezierPath,
+    NSClassFromString,
+    NSColor,
+    NSFont,
+    NSFontAttributeName,
+    NSForegroundColorAttributeName,
+    NSPoint,
+    NSRect,
+    NSString,
+)
 
 
 plugin_id = "com.lucasfonts.MetricsHandles"
@@ -18,18 +25,9 @@ SNAP_TOLERANCE = 5
 
 
 class MetricsHandles(ReporterPlugin):
-
     @objc.python_method
     def settings(self):
         self.menuName = "Metrics Handles"
-        # self.generalContextMenus = [
-        #     {
-        #         "name": Glyphs.localize({
-        #             'en': u'Show Error Labels',
-        #             'de': u'Fehlerbeschriftung anzeigen'}),
-        #         "action": self.toggleLabels
-        #     },
-        # ]
 
     @objc.python_method
     def start(self):
@@ -40,11 +38,13 @@ class MetricsHandles(ReporterPlugin):
 
     @objc.python_method
     def willActivate(self):
+        Glyphs.addCallback(self.mouseDidMove, MOUSEMOVED)
         Glyphs.addCallback(self.mouseDown_, MOUSEDOWN)
         Glyphs.addCallback(self.mouseUp_, MOUSEUP)
 
     @objc.python_method
     def willDeactivate(self):
+        Glyphs.removeCallback(self.mouseDidMove, MOUSEMOVED)
         Glyphs.removeCallback(self.mouseDown_, MOUSEDOWN)
         Glyphs.removeCallback(self.mouseUp_, MOUSEUP)
 
@@ -69,23 +69,31 @@ class MetricsHandles(ReporterPlugin):
                     x = 0.5
                 elif side == "RSB":
                     x = layer.width - 0.5
+
+            dist = self.getDraggedDistance()
+            # Live update the change
+            # if not metricsLocked:
+            #     self.setMetrics(self.active_metric, dist)
+
+            # Draw the dragging handle
+
             self._drawHandle(
                 handle_x=(x, 1),
                 width=1 / self.getScale(),
-                metric=(
-                    self.active_metric[0],
-                    self.getDraggedDistance(),
-                    layer
-                ),
+                metric=(self.active_metric[0], dist, layer),
                 alpha=1.0,
-                locked=metricsLocked
+                locked=metricsLocked,
             )
             return
 
         # Is the mouse inside the "hot spot"?
         # If yes, display drag handles
 
-        master = layer.master
+        try:
+            master = layer.master
+        except KeyError:
+            return
+
         if y < master.descender or y > master.ascender:
             self.active_metric = None
             return
@@ -106,10 +114,12 @@ class MetricsHandles(ReporterPlugin):
         if currentController:
             tool = currentController.toolDrawDelegate()
             # don't activate if on cursor tool, or pan tool
-            if not(
+            if not (
                 # tool.isKindOfClass_(NSClassFromString("GlyphsToolText")) or
-                tool.isKindOfClass_(NSClassFromString("GlyphsToolHand")) or
-                tool.isKindOfClass_(NSClassFromString("GlyphsToolTrueTypeInstructor"))
+                tool.isKindOfClass_(NSClassFromString("GlyphsToolHand"))
+                or tool.isKindOfClass_(
+                    NSClassFromString("GlyphsToolTrueTypeInstructor")
+                )
             ):
                 if x < snap_tolerance:
                     handle_x = (0, snap_tolerance)
@@ -127,14 +137,11 @@ class MetricsHandles(ReporterPlugin):
         pos, width = handle_x
         master = metric[2].master
         NSColor.colorWithCalibratedRed_green_blue_alpha_(
-            0.9,
-            0.1,
-            0.0,
-            alpha
+            0.9, 0.1, 0.0, alpha
         ).set()
         rect = NSRect(
             origin=(pos, master.descender),
-            size=(width, master.ascender - master.descender)
+            size=(width, master.ascender - master.descender),
         )
         NSBezierPath.bezierPathWithRect_(rect).fill()
         self._drawTextLabel(handle_x, width, metric, alpha, locked)
@@ -157,10 +164,7 @@ class MetricsHandles(ReporterPlugin):
         attrs = {
             NSFontAttributeName: NSFont.systemFontOfSize_(text_size),
             NSForegroundColorAttributeName: NSColor.colorWithCalibratedRed_green_blue_alpha_(
-                0.9,
-                0.1,
-                0.0,
-                alpha
+                0.9, 0.1, 0.0, alpha
             ),
         }
         myString = NSString.string().stringByAppendingString_(shown_value)
@@ -183,10 +187,7 @@ class MetricsHandles(ReporterPlugin):
         else:
             text_pt.x = self.mouse_position[0] - text_dist - bw
 
-        rr = NSRect(
-            origin=(text_pt.x, text_pt.y),
-            size=(bw, bh)
-        )
+        rr = NSRect(origin=(text_pt.x, text_pt.y), size=(bw, bh))
         myString.drawInRect_withAttributes_(rr, attrs)
 
     @objc.python_method
@@ -199,7 +200,10 @@ class MetricsHandles(ReporterPlugin):
     @objc.python_method
     def metricsAreLocked(self, layer):
         cp = "Link Metrics With First Master"
-        if cp in layer.master.customParameters and layer.master.customParameters[cp] == 1:
+        if (
+            cp in layer.master.customParameters
+            and layer.master.customParameters[cp] == 1
+        ):
             return True
         return False
 
@@ -222,6 +226,10 @@ class MetricsHandles(ReporterPlugin):
             layer.LSB += delta
             layer.width -= delta
         layer.parent.endUndo()
+
+    @objc.python_method
+    def mouseDidMove(self, notification):
+        Glyphs.redraw()
 
     def mouseDown_(self, event):
         # if event.clickCount() == 3:
