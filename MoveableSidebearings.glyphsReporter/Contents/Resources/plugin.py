@@ -201,10 +201,13 @@ class MetricsHandles(ReporterPlugin):
 
     @objc.python_method
     def metricsAreLocked(self, layer):
-        cp = "Link Metrics With First Master"
+        cp1 = "Link Metrics With First Master"
+        cp2 = "Link Metrics With Master"
         if (
-            cp in layer.master.customParameters
-            and layer.master.customParameters[cp] == 1
+            cp1 in layer.master.customParameters
+            and layer.master.customParameters[cp1] == 1
+            or cp2 in layer.master.customParameters
+            and layer.master.customParameters[cp2] == 1
         ):
             return True
         return False
