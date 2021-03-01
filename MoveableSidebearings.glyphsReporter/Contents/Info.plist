@@ -7,21 +7,21 @@
 	<key>CFBundleExecutable</key>
 	<string>plugin</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.lucasfonts.MetricsHandles</string>
+	<string>com.lucasfonts.MoveableSidebearings</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>MetricsHandles</string>
+	<string>MoveableSidebearings</string>
 	<key>CFBundleVersion</key>
 	<string>2</string>
 	<key>CFBundleShortVersionString</key>
 	<string>0.2.0</string>
 	<key>UpdateFeedURL</key>
-	<string>https://raw.githubusercontent.com/LucasFonts/Glyphs-MetricsHandles/master/MetricsHandles.glyphsReporter/Contents/Info.plist</string>
+	<string>https://raw.githubusercontent.com/LucasFonts/Glyphs-MetricsHandles/master/MoveableSidebearings.glyphsReporter/Contents/Info.plist</string>
 	<key>productPageURL</key>
 	<string>https://github.com/LucasFonts/Glyphs-MetricsHandles</string>
 	<key>productReleaseNotes</key>
-	<string>Draggable metrics handles.</string>
+	<string>Allow sidebearings and kerning to be edited by dragging handles.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright 2020 by LucasFonts</string>
 	<key>NSPrincipalClass</key>
