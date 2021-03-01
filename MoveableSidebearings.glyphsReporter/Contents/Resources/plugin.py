@@ -19,7 +19,7 @@ from AppKit import (
 )
 
 
-plugin_id = "com.lucasfonts.MetricsHandles"
+plugin_id = "com.lucasfonts.MoveableSidebearings"
 DEBUG = False
 SNAP_TOLERANCE = 5
 
@@ -27,7 +27,7 @@ SNAP_TOLERANCE = 5
 class MetricsHandles(ReporterPlugin):
     @objc.python_method
     def settings(self):
-        self.menuName = "Metrics Handles"
+        self.menuName = "Moveable Sidebearings"
 
     @objc.python_method
     def start(self):
