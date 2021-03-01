@@ -52,8 +52,10 @@ class MetricsHandles(ReporterPlugin):
     def foreground(self, layer):
         # Get the mouse position
         try:
-            self.mouse_position = self.controller.graphicView().getActiveLocation_(
-                Glyphs.currentEvent()
+            self.mouse_position = (
+                self.controller.graphicView().getActiveLocation_(
+                    Glyphs.currentEvent()
+                )
             )
         except Exception as e:
             self.logToConsole("foreground: mouse_position: %s" % str(e))
