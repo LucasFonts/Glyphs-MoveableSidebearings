@@ -9,6 +9,9 @@ from AppKit import (
     NSBezierPath,
     NSClassFromString,
     NSColor,
+    NSEvent,
+    NSEventMaskFlagsChanged,
+    NSEventModifierFlagOption,
     NSFont,
     NSFontAttributeName,
     NSForegroundColorAttributeName,
@@ -27,6 +30,17 @@ class MetricsHandles(ReporterPlugin):
     @objc.python_method
     def settings(self):
         self.menuName = "Moveable Sidebearings"
+
+        def mask_handler(event):
+            optPressed = (
+                event.modifierFlags() & NSEventModifierFlagOption
+            ) == NSEventModifierFlagOption
+            print(optPressed)
+            return event
+
+        NSEvent.addLocalMonitorForEventsMatchingMask_handler_(
+            NSEventMaskFlagsChanged, mask_handler
+        )
 
     @objc.python_method
     def start(self):
@@ -248,6 +262,7 @@ class MetricsHandles(ReporterPlugin):
             self.drag_start = self.mouse_position[0]
 
     def mouseUp_(self, event):
+        # print(Glyphs.currentDocument.windowController().AltKey())
         self.dragging = False
         # Set changed metric
         if self.drag_start is None:
