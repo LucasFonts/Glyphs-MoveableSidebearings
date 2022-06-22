@@ -1,4 +1,4 @@
-# Glyphs-MetricsHandles
+# Glyphs-MoveableSidebearings
 
 Draggable sidebearings for Glyphs.app
 
