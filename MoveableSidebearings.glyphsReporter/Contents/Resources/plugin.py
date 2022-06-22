@@ -156,9 +156,9 @@ class MetricsHandles(ReporterPlugin):
         if locked:
             shown_value = "🔒︎"
         elif metric_name == "LSB" and self.dragging:
-            shown_value = "%g ∆%g" % (layer.LSB - value, value)
+            shown_value = "∆%g = %g" % (value, layer.LSB - value)
         elif metric_name == "RSB" and self.dragging:
-            shown_value = "%g ∆%g" % (layer.RSB + value, value)
+            shown_value = "∆%g = %g" % (value, layer.RSB + value)
         else:
             shown_value = "%g" % value
 
