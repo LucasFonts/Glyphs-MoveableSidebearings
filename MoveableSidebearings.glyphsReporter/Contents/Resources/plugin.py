@@ -34,6 +34,7 @@ class MetricsHandles(ReporterPlugin):
         self.drag_start = None
         self.dragging = False
         self.mouse_position = (0, 0)
+        self.willActivate()
 
     @objc.python_method
     def willActivate(self):
