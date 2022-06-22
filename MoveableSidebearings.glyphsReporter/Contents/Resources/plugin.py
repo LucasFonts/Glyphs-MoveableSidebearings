@@ -4,7 +4,6 @@ from __future__ import division, print_function, unicode_literals
 import objc
 from GlyphsApp import Glyphs, MOUSEDOWN, MOUSEUP, MOUSEMOVED
 
-# from GlyphsApp.plugins import *
 from GlyphsApp.plugins import ReporterPlugin
 from AppKit import (
     NSBezierPath,
@@ -136,7 +135,7 @@ class MetricsHandles(ReporterPlugin):
 
     @objc.python_method
     def _drawHandle(self, handle_x, width, metric, alpha=0.3, locked=False):
-        pos, width = handle_x
+        pos, _ = handle_x
         master = metric[2].master
         NSColor.colorWithCalibratedRed_green_blue_alpha_(
             0.9, 0.1, 0.0, alpha
