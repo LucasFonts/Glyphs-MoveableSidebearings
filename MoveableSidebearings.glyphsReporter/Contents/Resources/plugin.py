@@ -9,9 +9,9 @@ from AppKit import (
     NSBezierPath,
     NSClassFromString,
     NSColor,
-    NSEvent,
-    NSEventMaskFlagsChanged,
-    NSEventModifierFlagOption,
+    # NSEvent,
+    # NSEventMaskFlagsChanged,
+    # NSEventModifierFlagOption,
     NSFont,
     NSFontAttributeName,
     NSForegroundColorAttributeName,
@@ -31,16 +31,16 @@ class MetricsHandles(ReporterPlugin):
     def settings(self):
         self.menuName = "Moveable Sidebearings"
 
-        def mask_handler(event):
-            optPressed = (
-                event.modifierFlags() & NSEventModifierFlagOption
-            ) == NSEventModifierFlagOption
-            print(optPressed)
-            return event
+        # def mask_handler(event):
+        #     optPressed = (
+        #         event.modifierFlags() & NSEventModifierFlagOption
+        #     ) == NSEventModifierFlagOption
+        #     print(optPressed)
+        #     return event
 
-        NSEvent.addLocalMonitorForEventsMatchingMask_handler_(
-            NSEventMaskFlagsChanged, mask_handler
-        )
+        # NSEvent.addLocalMonitorForEventsMatchingMask_handler_(
+        #     NSEventMaskFlagsChanged, mask_handler
+        # )
 
     @objc.python_method
     def start(self):
