@@ -13,13 +13,13 @@
 	<key>CFBundleName</key>
 	<string>MoveableSidebearings</string>
 	<key>CFBundleVersion</key>
-	<string>2</string>
+	<string>3</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.2.0</string>
+	<string>0.3.0</string>
 	<key>UpdateFeedURL</key>
-	<string>https://raw.githubusercontent.com/LucasFonts/Glyphs-MetricsHandles/master/MoveableSidebearings.glyphsReporter/Contents/Info.plist</string>
+	<string>https://raw.githubusercontent.com/LucasFonts/Glyphs-MoveableSidebearings/master/MoveableSidebearings.glyphsReporter/Contents/Info.plist</string>
 	<key>productPageURL</key>
-	<string>https://github.com/LucasFonts/Glyphs-MetricsHandles</string>
+	<string>https://github.com/LucasFonts/Glyphs-MoveableSidebearings</string>
 	<key>productReleaseNotes</key>
 	<string>Allow sidebearings and kerning to be edited by dragging handles.</string>
 	<key>NSHumanReadableCopyright</key>
