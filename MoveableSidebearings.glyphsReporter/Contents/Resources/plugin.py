@@ -79,7 +79,7 @@ class MetricsHandles(ReporterPlugin):
 
         if self.dragging:
             metricsLocked = self.metricsAreLocked(layer)
-            if self.metricsAreLocked(layer):
+            if metricsLocked:
                 side = self.active_metric[0]
                 if side == "LSB":
                     x = 0.5
