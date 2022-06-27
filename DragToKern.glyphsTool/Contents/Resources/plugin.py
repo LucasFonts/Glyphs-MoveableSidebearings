@@ -177,6 +177,7 @@ class DragToKern(SelectTool):
                 return
             
             if self.mode == "RSB":
+                # FIXME: Doesn't redraw properly
                 self.layer1.RSB -= delta
                 return
 
