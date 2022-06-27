@@ -36,18 +36,23 @@ class DragToKern(SelectTool):
 
     def mouseDown_(self, theEvent):
         """
-        Do more stuff that you need on mouseDown_(). Like custom selection
+        Get the mouse down location to record the start coordinate and dragged
+        layer.
         """
         # objc.super(DragToKern, self).mouseDown_(theEvent)
+        # Get the mouse click location and convert it to local coordinates
         gv = self.editViewController().graphicView()
         loc = gv.convertPoint_fromView_(theEvent.locationInWindow(), None)
+        # Which layer is at the mouse click location?
         layerIndex = gv.layerIndexForPoint_(loc)
-        if layerIndex > 0xFFFF or layerIndex == 0:
+        if layerIndex == 0 or layerIndex > 0xFFFF:
+            # First layer (0) or no layer (maxint) can't be kerned
             self.layer1 = None
             self.layer2 = None
             self.drag_start = None
             return
 
+        # Find out which layers should be kerned
         layers = self.editViewController().composedLayers
         self.layer1 = layers[layerIndex - 1]
         self.layer2 = layers[layerIndex]
@@ -58,12 +63,13 @@ class DragToKern(SelectTool):
             self.drag_start = None
             return
 
+        # Note the start coordinates for later
         self.drag_start = loc
         # self.layer1.parent.beginUndo()
 
     def mouseDragged_(self, theEvent):
         """
-        Do more stuff that you need on mouseDragged_(). Like moving custom objects
+        Update the kerning when the mouse is dragged and live update is on.
         """
         # objc.super(DragToKern, self).mouseDragged_(theEvent)
         if not LIVE_UPDATE:
@@ -76,7 +82,7 @@ class DragToKern(SelectTool):
 
     def mouseUp_(self, theEvent):
         """
-        Do more stuff that you need on mouseUp_(). Like custom selection
+        If live update is off, we must update the kerning on mouse up.
         """
         # objc.super(DragToKern, self).mouseUp_(theEvent)
         if not LIVE_UPDATE:
@@ -94,6 +100,9 @@ class DragToKern(SelectTool):
 
     @objc.python_method
     def handleDrag(self, theEvent):
+        """
+        Get the current location while the mouse is dragging.
+        """
         evc = self.editViewController()
         gv = evc.graphicView()
         loc = gv.convertPoint_fromView_(theEvent.locationInWindow(), None)
@@ -104,6 +113,9 @@ class DragToKern(SelectTool):
 
     @objc.python_method
     def applyKerning(self, layer1, layer2, delta):
+        """
+        Apply the kerning difference to the given layer pair.
+        """
         # TODO: Support RTL kerning
         # TODO: Support exceptions
 
@@ -119,6 +131,7 @@ class DragToKern(SelectTool):
         # classKerning = font.kerningForPair(masterId, glyph1Key, glyph2Key)
 
         kerning = font.kerningForPair(masterId, glyph1Key, glyph2Key)
+        # Glyphs 3 returns "no kerning" as None, Glyphs 2 as maxint
         if kerning is None or kerning > 0xFFFF:
             kerning = delta
         else:
