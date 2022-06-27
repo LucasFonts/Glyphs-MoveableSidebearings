@@ -144,9 +144,7 @@ class DragToKern(SelectTool):
         cp2 = "Link Metrics With Master"
         if (
             cp1 in layer.master.customParameters
-            and layer.master.customParameters[cp1] == 1
             or cp2 in layer.master.customParameters
-            and layer.master.customParameters[cp2] == 1
         ):
             return True
         return False
@@ -165,13 +163,19 @@ class DragToKern(SelectTool):
         delta = int(round((loc.x - self.drag_start.x) / evc.scale))
         self.drag_start = loc
         if delta != 0:
+            # Only "move" can be applied for linked metrics
+            if self.mode == "move":
+                self.layer1.LSB += delta
+                self.layer1.width -= delta
+                return
+
+            if self.metricsAreLocked(self.layer1):
+                return
+
             if self.mode == "kern":
                 self.applyKerning(self.layer1, self.layer2, delta)
                 return
             
-            if self.metricsAreLocked(self.layer1):
-                return
-
             if self.mode == "LSB":
                 self.layer1.LSB += delta
                 return
@@ -179,10 +183,6 @@ class DragToKern(SelectTool):
             if self.mode == "RSB":
                 # FIXME: Doesn't redraw properly
                 self.layer1.RSB -= delta
-                return
-
-            self.layer1.LSB += delta
-            self.layer1.width -= delta
 
     @objc.python_method
     def applyKerning(self, layer1, layer2, delta):
