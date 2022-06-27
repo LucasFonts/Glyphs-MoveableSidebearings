@@ -16,8 +16,6 @@ any modifier keys when starting to drag:
 
 ## Known issues
 
-- When modifying the right sidebearing, the preview glyphs do not update
-  instantly.
 - Each small kerning modification is its own undo step, so when kerning, undo
   is effectively useless.
 - Kerning exceptions are not supported. When dragging any existing exception

@@ -107,21 +107,22 @@ class DragToKern(SelectTool):
         if self.drag_start is None:
             return
 
-        self.handleDrag(theEvent)
-        if self.mode != "kern":
-            Glyphs.redraw()
+        needsRedraw = self.handleDrag(theEvent)
+        if needsRedraw:
+            self.editViewController().forceRedraw()
 
     def mouseUp_(self, theEvent):
         """
         If live update is off, we must update the kerning on mouse up.
         """
+        needsRedraw = False
         if not LIVE_UPDATE:
             if self.drag_start is None:
                 self.layer1 = None
                 self.layer2 = None
                 return
             
-            self.handleDrag(theEvent)
+            needsRedraw = self.handleDrag(theEvent)
 
         self.drag_start = None
         self.layer2 = None
@@ -133,7 +134,8 @@ class DragToKern(SelectTool):
         # For sidebearing modifications, end the undo block
         if self.layer1 is not None:
             self.layer1.parent.endUndo()
-            Glyphs.redraw()
+            if needsRedraw:
+                self.editViewController().forceRedraw()
 
         self.layer1 = None
         self.mode = None
@@ -167,22 +169,24 @@ class DragToKern(SelectTool):
             if self.mode == "move":
                 self.layer1.LSB += delta
                 self.layer1.width -= delta
-                return
+                return True
 
             if self.metricsAreLocked(self.layer1):
-                return
+                return False
 
             if self.mode == "kern":
                 self.applyKerning(self.layer1, self.layer2, delta)
-                return
+                return False
             
             if self.mode == "LSB":
                 self.layer1.LSB += delta
-                return
+                return True
             
             if self.mode == "RSB":
-                # FIXME: Doesn't redraw properly
                 self.layer1.RSB -= delta
+                return True
+
+        return False
 
     @objc.python_method
     def applyKerning(self, layer1, layer2, delta):
