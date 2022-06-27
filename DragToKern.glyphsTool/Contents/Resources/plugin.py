@@ -15,8 +15,8 @@ class DragToKern(SelectTool):
     def settings(self):
         self.name = Glyphs.localize(
             {
-                "en": "Mouse Kerning",
-                "de": "Unterschneidung per Maus",
+                "en": "Mouse Kerning and Spacing",
+                "de": "Unterschneidung und Zurichtung per Maus",
             }
         )
         self.keyboardShortcut = "k"
