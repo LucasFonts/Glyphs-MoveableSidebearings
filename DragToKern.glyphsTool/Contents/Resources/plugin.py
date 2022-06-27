@@ -23,11 +23,8 @@ class DragToKern(SelectTool):
 
     @objc.python_method
     def start(self):
-        self.dragged_layer = None
         self.active_metric = None
         self.drag_start = None
-        self.dragging = False
-        self.mouse_position = (0, 0)
 
     @objc.python_method
     def activate(self):
