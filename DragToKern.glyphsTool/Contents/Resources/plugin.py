@@ -119,7 +119,7 @@ class DragToKern(SelectTool):
         # classKerning = font.kerningForPair(masterId, glyph1Key, glyph2Key)
 
         kerning = font.kerningForPair(masterId, glyph1Key, glyph2Key)
-        if kerning is None:
+        if kerning is None or kerning > 0xFFFF:
             kerning = delta
         else:
             kerning += delta
