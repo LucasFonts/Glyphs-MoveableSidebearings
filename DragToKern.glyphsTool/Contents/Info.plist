@@ -13,9 +13,9 @@
 	<key>CFBundleName</key>
 	<string>DragToKern</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1</string> <!-- 1.0 -->
+	<string>0.2</string> <!-- 1.0 -->
 	<key>CFBundleVersion</key>
-	<string>1</string> <!-- 123 -->
+	<string>2</string> <!-- 123 -->
 	<!--<key>UpdateFeedURL</key>
 	<string>https://raw.githubusercontent.com/LucasFonts/Glyphs-MoveableSidebearings/master/DragToKern.glyphsTool/Contents/Info.plist</string>
 	<key>productPageURL</key>
