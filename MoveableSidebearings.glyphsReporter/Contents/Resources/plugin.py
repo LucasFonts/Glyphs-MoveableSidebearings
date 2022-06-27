@@ -14,6 +14,7 @@ from AppKit import (
     # NSEventModifierFlagOption,
     NSFont,
     NSFontAttributeName,
+    NSFontWeightRegular,
     NSForegroundColorAttributeName,
     NSPoint,
     NSRect,
@@ -178,7 +179,7 @@ class MetricsHandles(ReporterPlugin):
             shown_value = "%g" % value
 
         attrs = {
-            NSFontAttributeName: NSFont.systemFontOfSize_(text_size),
+            NSFontAttributeName: NSFont.monospacedDigitSystemFontOfSize_weight_	(text_size, NSFontWeightRegular),
             NSForegroundColorAttributeName: NSColor.colorWithCalibratedRed_green_blue_alpha_(
                 0.9, 0.1, 0.0, alpha
             ),
