@@ -183,7 +183,7 @@ class DragToKern(SelectTool):
                 return True
             
             if self.mode == "RSB":
-                self.layer1.RSB -= delta
+                self.layer1.RSB += delta
                 return True
 
         return False
