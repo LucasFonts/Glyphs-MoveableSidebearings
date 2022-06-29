@@ -185,7 +185,7 @@ class DragToKern(SelectTool):
         return False
 
     @objc.python_method
-    def applyKerning(self, layer1, layer2, delta):
+    def applyKerning(self, layer1, layer2, delta, direction=0):
         """
         Apply the kerning difference to the given layer pair.
         """
@@ -203,7 +203,7 @@ class DragToKern(SelectTool):
         # classKerning = font.kerningForPair(masterId, glyph1Key, glyph2Key)
 
         kerning = layer2.previousKerningForLayer_direction_(
-            layer1, 0 # self.direction
+            layer1, direction
         )
         # Glyphs 3 returns "no kerning" as None, Glyphs 2 as maxint
         if kerning is None or kerning > 0xFFFF:
@@ -212,6 +212,9 @@ class DragToKern(SelectTool):
         else:
             # Kern pair existed before, add the delta value
             kerning += delta
+        layer2.setPreviousKerning_forLayer_direction_(
+            kerning, layer1, direction
+        )
 
         # # If modifier keys are pressed, make an exception
         # if layer1Exception:
