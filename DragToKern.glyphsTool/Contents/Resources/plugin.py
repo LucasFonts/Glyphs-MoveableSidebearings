@@ -3,8 +3,19 @@ from __future__ import division, print_function, unicode_literals
 
 import objc
 
-from AppKit import NSCursor
-from GlyphsApp import Glyphs
+from AppKit import (
+    NSBezierPath,
+    NSColor,
+    NSCursor,
+    NSFont,
+    NSFontAttributeName,
+    NSFontWeightRegular,
+    NSForegroundColorAttributeName,
+    NSPoint,
+    NSRect,
+    NSString,
+)
+from GlyphsApp import Glyphs, MOUSEMOVED
 
 try:
     from GlyphsApp import GSLTR as LTR, GSRTL as RTL
@@ -14,6 +25,7 @@ from GlyphsApp.plugins import SelectTool
 
 
 LIVE_UPDATE = True
+SNAP_TOLERANCE = 8
 
 
 class DragToKern(SelectTool):
@@ -36,16 +48,17 @@ class DragToKern(SelectTool):
     @objc.python_method
     def start(self):
         self.mode = None
+        self.mouse_position = (0, 0)
         self.drag_start = None
         self.direction = LTR
 
     @objc.python_method
     def activate(self):
-        pass
+        Glyphs.addCallback(self.mouseDidMove, MOUSEMOVED)
 
     @objc.python_method
     def deactivate(self):
-        pass
+        Glyphs.removeCallback(self.mouseDidMove, MOUSEMOVED)
 
     def keyDown_(self, theEvent):
         c = theEvent.characters()
@@ -62,6 +75,15 @@ class DragToKern(SelectTool):
 
         # Other keys are handled by the super class
         super(DragToKern, self).keyDown_(theEvent)
+
+    @objc.python_method
+    @property
+    def dragging(self):
+        return self.drag_start is not None
+
+    @objc.python_method
+    def mouseDidMove(self, notification):
+        Glyphs.redraw()
 
     def mouseDown_(self, theEvent):
         """
@@ -326,10 +348,150 @@ class DragToKern(SelectTool):
             layer, layerOrigin, active, attributes
         )
 
-    def drawMetricsForLayer_atPoint_asActive_(
+    # def drawMetricsForLayer_atPoint_asActive_(
+    #     self, layer, layerOrigin, active
+    # ):
+    #     pass
+
+    def drawBackgroundForLayer_atPoint_asActive_(
         self, layer, layerOrigin, active
     ):
-        pass
+        self.drawHandles(layer, layerOrigin, active)
+
+    @objc.python_method
+    def getScale(self):
+        return self.editViewController().graphicView().scale()
+
+    @objc.python_method
+    def drawHandles(self, layer, layerOrigin, active):
+        try:
+            master = layer.master
+        except KeyError:
+            return
+
+        evc = self.editViewController()
+        gv = evc.graphicView()
+        theEvent = Glyphs.currentEvent()
+        self.mouse_position = gv.getActiveLocation_(theEvent)
+        self.mouse_position = loc = gv.convertPoint_fromView_(
+            theEvent.locationInWindow(), None
+        )
+        # Which layer is at the mouse location?
+        # layerIndex = gv.layerIndexForPoint_(loc)
+        # composedLayers = evc.composedLayers
+        x, y = loc
+        scale = gv.scale()
+        desc = master.descender * scale
+        asc = master.ascender * scale
+        asc += layerOrigin.y
+        desc += layerOrigin.y
+        layerWidth = layer.width * scale
+
+        # Don't draw handles outside ascender/descender
+        # if y < desc or y > asc:
+        #     self.active_metric = None
+        #     return
+
+        offsetX = x - layerOrigin.x
+
+        if offsetX < 0 or offsetX > layerWidth:
+            # Mouse is outside the glyph
+            self.active_metric = None
+            return
+
+        snap_tolerance = SNAP_TOLERANCE
+
+        if offsetX > snap_tolerance and offsetX < layerWidth - snap_tolerance:
+            # Mouse is too far inside the glyph
+            self.active_metric = None
+            return
+
+        if offsetX < snap_tolerance:
+            handle_x = (layerOrigin.x, snap_tolerance)
+            metric = (
+                "LSB",
+                layer.LSB,
+                layer,
+                desc,
+                asc,
+            )
+            width = layerOrigin.x
+        else:
+            handle_x = (
+                layerOrigin.x + layerWidth - snap_tolerance,
+                snap_tolerance,
+            )
+            metric = (
+                "RSB",
+                layer.RSB,
+                layer,
+                desc,
+                asc,
+            )
+            width = layerOrigin.x + layerWidth
+        self.active_metric = metric
+        self._drawHandle(handle_x, width, metric)
+
+        # print(x, y, desc, asc, layer.parent.name, layerOrigin)
+
+    @objc.python_method
+    def _drawHandle(self, handle_x, width, metric, alpha=0.3, locked=False):
+        pos, w = handle_x
+        metric_name, value, layer, desc, asc = metric
+        NSColor.colorWithCalibratedRed_green_blue_alpha_(
+            0.9, 0.1, 0.0, alpha
+        ).set()
+        rect = NSRect(
+            origin=(pos, desc),
+            size=(w, asc - desc),
+        )
+        NSBezierPath.bezierPathWithRect_(rect).fill()
+        self._drawTextLabel(handle_x, width, metric, alpha, locked)
+
+    @objc.python_method
+    def _drawTextLabel(self, handle_x, width, metric, alpha=0.3, locked=False):
+        text_size = 11
+        text_dist = 12
+        metric_name, value, layer, _, _ = metric
+        if locked:
+            shown_value = "🔒︎"
+        elif metric_name == "LSB" and self.dragging:
+            shown_value = "∆%g = %g" % (value, layer.LSB - value)
+        elif metric_name == "RSB" and self.dragging:
+            shown_value = "∆%g = %g" % (value, layer.RSB + value)
+        else:
+            shown_value = "%g" % value
+
+        attrs = {
+            NSFontAttributeName: NSFont.monospacedDigitSystemFontOfSize_weight_(
+                text_size, NSFontWeightRegular
+            ),
+            NSForegroundColorAttributeName: NSColor.colorWithCalibratedRed_green_blue_alpha_(
+                0.9, 0.1, 0.0, alpha
+            ),
+        }
+        myString = NSString.string().stringByAppendingString_(shown_value)
+        bbox = myString.sizeWithAttributes_(attrs)
+        bw = bbox.width
+        bh = bbox.height
+
+        text_pt = NSPoint()
+        text_pt.y = self.mouse_position[1]
+        if metric_name == "LSB":
+            if self.dragging:
+                text_pt.x = handle_x[0] + text_dist
+            else:
+                text_pt.x = width + text_dist
+        elif metric_name == "RSB":
+            if self.dragging:
+                text_pt.x = handle_x[0] - text_dist - bw
+            else:
+                text_pt.x = width - text_dist - bw
+        else:
+            text_pt.x = self.mouse_position[0] - text_dist - bw
+
+        rr = NSRect(origin=(text_pt.x, text_pt.y), size=(bw, bh))
+        myString.drawInRect_withAttributes_(rr, attrs)
 
     @objc.python_method
     def __file__(self):
