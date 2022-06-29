@@ -4,7 +4,11 @@ from __future__ import division, print_function, unicode_literals
 import objc
 
 from AppKit import NSCursor
-from GlyphsApp import Glyphs, LTR, RTL
+from GlyphsApp import Glyphs
+try:
+    from GlyphsApp import GSLTR as LTR, GSRTL as RTL
+except:
+    from GlyphsApp import LTR, RTL
 from GlyphsApp.plugins import SelectTool
 
 
@@ -32,7 +36,7 @@ class DragToKern(SelectTool):
     def start(self):
         self.mode = None
         self.drag_start = None
-        self.direction = None
+        self.direction = LTR
 
     @objc.python_method
     def activate(self):
@@ -158,7 +162,7 @@ class DragToKern(SelectTool):
             if needsRedraw:
                 self.editViewController().forceRedraw()
 
-        self.direction = None
+        self.direction = LTR
         self.mode = None
         self.cancel_operation()
         # self.setStdCursor()
@@ -201,7 +205,9 @@ class DragToKern(SelectTool):
                 return False
 
             if self.mode == "kern":
-                self.applyKerning(self.layer1, self.layer2, delta)
+                self.applyKerning(
+                    self.layer1, self.layer2, delta, self.direction
+                )
                 return False  # Kerning changes already trigger a redraw
 
             if self.mode == "LSB":
@@ -215,50 +221,30 @@ class DragToKern(SelectTool):
         return False
 
     @objc.python_method
-    def applyKerning(self, layer1, layer2, delta, direction=0):
+    def applyKerning(self, layer1, layer2, delta, direction=LTR):
         """
         Apply the kerning difference to the given layer pair.
         """
-        # TODO: Support RTL kerning
+        value = layer2.previousKerningForLayer_direction_(layer1, direction)
 
-        # layer1Exception = self.windowController().AltKey()
-        # layer2Exception = self.windowController().CommandKey()
-        # master = layer2.master
-        # masterId = master.id
-        # font = master.font
-
-        # glyph1Key = layer1.parent.rightKerningKey
-        # glyph2Key = layer2.parent.leftKerningKey
-
-        # classKerning = font.kerningForPair(masterId, glyph1Key, glyph2Key)
-
-        kerning = layer2.previousKerningForLayer_direction_(
-            layer1, direction
-        )
         # Glyphs 3 returns "no kerning" as None, Glyphs 2 as maxint
-        if kerning is None or kerning > 0xFFFF:
+        if value is None or value > 0xFFFF:
             # Kern pair didn't exist, set the kerning to the delta value
-            kerning = delta
+            value = delta
         else:
             # Kern pair existed before, add the delta value
-            kerning += delta
-        layer2.setPreviousKerning_forLayer_direction_(
-            kerning, layer1, direction
-        )
+            value += delta
 
-        # # If modifier keys are pressed, make an exception
-        # if layer1Exception:
-        #     glyph1Key = layer1.parent.name
-        # if layer2Exception:
-        #     glyph2Key = layer2.parent.name
+        print(layer1.parent.name, layer2.parent.name, value, delta, direction)
 
-        # font.setKerningForPair(
-        #     masterId,
-        #     glyph1Key,
-        #     glyph2Key,
-        #     kerning,
-        # )
-        layer2.setPreviousKerning_forLayer_direction_(kerning, layer1, 0)
+        if direction == LTR:
+            layer2.setPreviousKerning_forLayer_direction_(
+                value, layer1, direction
+            )
+        else:
+            layer2.setPreviousKerning_forLayer_direction_(
+                value, layer1, direction
+            )
 
     def drawLayer_atPoint_asActive_attributes_(
         self, layer, layerOrigin, active, attributes
