@@ -194,20 +194,19 @@ class DragToKern(SelectTool):
         Apply the kerning difference to the given layer pair.
         """
         # TODO: Support RTL kerning
-        # TODO: Support exceptions
 
         # layer1Exception = self.windowController().AltKey()
         # layer2Exception = self.windowController().CommandKey()
-        master = layer2.master
-        masterId = master.id
-        font = master.font
+        # master = layer2.master
+        # masterId = master.id
+        # font = master.font
 
-        glyph1Key = layer1.parent.rightKerningKey
-        glyph2Key = layer2.parent.leftKerningKey
+        # glyph1Key = layer1.parent.rightKerningKey
+        # glyph2Key = layer2.parent.leftKerningKey
 
         # classKerning = font.kerningForPair(masterId, glyph1Key, glyph2Key)
 
-        kerning = font.kerningForPair(masterId, glyph1Key, glyph2Key)
+        kerning = layer2.previousKerningForLayer_direction_(layer1, 0)  # 0 is LTR
         # Glyphs 3 returns "no kerning" as None, Glyphs 2 as maxint
         if kerning is None or kerning > 0xFFFF:
             kerning = delta
@@ -220,12 +219,13 @@ class DragToKern(SelectTool):
         # if layer2Exception:
         #     glyph2Key = layer2.parent.name
 
-        font.setKerningForPair(
-            masterId,
-            glyph1Key,
-            glyph2Key,
-            kerning,
-        )
+        # font.setKerningForPair(
+        #     masterId,
+        #     glyph1Key,
+        #     glyph2Key,
+        #     kerning,
+        # )
+        layer2.setPreviousKerning_forLayer_direction_(kerning, layer1, 0)
 
     def drawLayer_atPoint_asActive_attributes_(self, layer, layerOrigin, active, attributes):
         gv = self.editViewController().graphicView()
