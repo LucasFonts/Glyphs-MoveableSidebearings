@@ -235,7 +235,7 @@ class DragToKern(SelectTool):
             # Kern pair existed before, add the delta value
             value += delta
 
-        print(layer1.parent.name, layer2.parent.name, value, delta, direction)
+        # print(layer1.parent.name, layer2.parent.name, value, delta, direction)
 
         if direction == LTR:
             layer2.setPreviousKerning_forLayer_direction_(
