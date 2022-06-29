@@ -22,7 +22,7 @@ position and the glyph to the left of it.
 
 This is best illustrated with an example:
 
-![](media/mouse.png)
+![](media/DragToKern-Exception.gif)
 
 Hovering over the **ö**, the shortcuts will:
 
