@@ -16,14 +16,13 @@ any modifier keys when starting to drag:
 
 ## Known issues
 
-- Each small kerning modification is its own undo step, so when kerning, undo
-  is effectively useless.
-- Kerning exceptions are not supported. When dragging any existing exception
-  pair, the class pair’s kerning is modified instead.
 - If the current master’s metrics are linked to another master, dragging does
-  nothing.
+  nothing. The linking should probably be indicated somehow when trying to
+  drag.
 - Metrics keys are not considered when dragging the spacing. The linked metrics
   just go out of sync.
+- Undo for metrics and kerning changes only works if you make the affected
+  glyph the current glyph (e.g. by double-clicking it with the select tool)
 
 
 # MoveableSidebearings
