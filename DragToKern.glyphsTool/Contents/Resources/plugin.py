@@ -230,11 +230,17 @@ class DragToKern(SelectTool):
         # )
         layer2.setPreviousKerning_forLayer_direction_(kerning, layer1, 0)
 
-    def drawLayer_atPoint_asActive_attributes_(self, layer, layerOrigin, active, attributes):
+    def drawLayer_atPoint_asActive_attributes_(
+        self, layer, layerOrigin, active, attributes
+    ):
         gv = self.editViewController().graphicView()
-        gv.drawLayer_atPoint_asActive_attributes_(layer, layerOrigin, active, attributes)
+        gv.drawLayer_atPoint_asActive_attributes_(
+            layer, layerOrigin, active, attributes
+        )
 
-    def drawMetricsForLayer_atPoint_asActive_(self, layer, layerOrigin, active):
+    def drawMetricsForLayer_atPoint_asActive_(
+        self, layer, layerOrigin, active
+    ):
         pass
 
     @objc.python_method
