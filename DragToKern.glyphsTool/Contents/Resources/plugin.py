@@ -5,6 +5,7 @@ import objc
 
 from AppKit import NSCursor
 from GlyphsApp import Glyphs
+
 try:
     from GlyphsApp import GSLTR as LTR, GSRTL as RTL
 except:
