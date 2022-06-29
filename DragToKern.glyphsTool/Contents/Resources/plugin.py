@@ -3,6 +3,7 @@ from __future__ import division, print_function, unicode_literals
 
 import objc
 
+from AppKit import NSCursor
 from GlyphsApp import Glyphs, LTR, RTL
 from GlyphsApp.plugins import SelectTool
 
@@ -20,6 +21,12 @@ class DragToKern(SelectTool):
             }
         )
         self.keyboardShortcut = "k"
+        self.stdCursor = NSCursor.resizeLeftRightCursor()
+        self.lckCursor = NSCursor.operationNotAllowedCursor()
+        self.cursor = self.stdCursor
+
+    def standardCursor(self):
+        return self.cursor
 
     @objc.python_method
     def start(self):
@@ -80,6 +87,7 @@ class DragToKern(SelectTool):
                 # First layer (0) or no layer (maxint) can't be kerned
                 # Don't edit if kerning is not shown in the view
                 self.cancel_operation()
+                # self.setLockedCursor()
                 return
 
             # Find out which layers should be kerned
@@ -88,6 +96,7 @@ class DragToKern(SelectTool):
             if self.layer2.master != self.layer1.master:
                 # Can't add kerning between different masters
                 self.cancel_operation()
+                # self.setLockedCursor()
                 return
 
         else:
@@ -95,6 +104,7 @@ class DragToKern(SelectTool):
             if not gv.doSpacing() and self.mode != "move":
                 # Don't edit if spacing is locked in the view
                 self.cancel_operation()
+                # self.setLockedCursor()
                 return
 
             self.layer2 = composedLayers[layerIndex]
@@ -106,6 +116,16 @@ class DragToKern(SelectTool):
         self.layer1 = None
         self.layer2 = None
         self.drag_start = None
+
+    @objc.python_method
+    def setLockedCursor(self):
+        # self.editViewController().contentView().enclosingScrollView().setDocumentCursor_(self.lckCursor)
+        pass
+
+    @objc.python_method
+    def setStdCursor(self):
+        # self.editViewController().contentView().enclosingScrollView().setDocumentCursor_(self.stdCursor)
+        pass
 
     def mouseDragged_(self, theEvent):
         """
@@ -141,6 +161,7 @@ class DragToKern(SelectTool):
         self.direction = None
         self.mode = None
         self.cancel_operation()
+        # self.setStdCursor()
 
     @objc.python_method
     def metricsAreLocked(self, layer):
