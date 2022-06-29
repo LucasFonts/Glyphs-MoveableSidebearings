@@ -3,7 +3,7 @@ from __future__ import division, print_function, unicode_literals
 
 import objc
 
-from GlyphsApp import Glyphs
+from GlyphsApp import Glyphs, LTR, RTL
 from GlyphsApp.plugins import SelectTool
 
 
@@ -25,6 +25,7 @@ class DragToKern(SelectTool):
     def start(self):
         self.mode = None
         self.drag_start = None
+        self.direction = None
 
     @objc.python_method
     def activate(self):
@@ -47,6 +48,8 @@ class DragToKern(SelectTool):
         layerIndex = gv.layerIndexForPoint_(loc)
         # Note the start coordinates for later
         self.drag_start = loc
+        # Note the kerning direction
+        self.direction = evc.direction
 
         # What should be modified? Kerning, LSB, RSB, or both SBs?
         wc = self.windowController()
@@ -135,6 +138,7 @@ class DragToKern(SelectTool):
             if needsRedraw:
                 self.editViewController().forceRedraw()
 
+        self.direction = None
         self.mode = None
         self.cancel_operation()
 
