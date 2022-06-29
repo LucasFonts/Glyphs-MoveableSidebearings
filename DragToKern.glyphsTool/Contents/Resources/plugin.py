@@ -47,6 +47,22 @@ class DragToKern(SelectTool):
     def deactivate(self):
         pass
 
+    def keyDown_(self, theEvent):
+        c = theEvent.characters()
+        if c in ("a", "s", "d", "A", "S", "D"):
+            # Get the mouse location and convert it to local coordinates
+            evc = self.editViewController()
+            gv = evc.graphicView()
+            loc = gv.convertPoint_fromView_(theEvent.locationInWindow(), None)
+            # Which layer is at the mouse click location?
+            layerIndex = gv.layerIndexForPoint_(loc)
+            composedLayers = evc.composedLayers
+            self.handleException(composedLayers, layerIndex, c)
+            return
+
+        # Other keys are handled by the super class
+        super(DragToKern, self).keyDown_(theEvent)
+
     def mouseDown_(self, theEvent):
         """
         Get the mouse down location to record the start coordinate and dragged
@@ -220,6 +236,61 @@ class DragToKern(SelectTool):
                 return True
 
         return False
+
+    @objc.python_method
+    def handleException(self, composedLayers, layerIndex, c):
+        """
+        Add or remove an exception at the current location
+        """
+        if layerIndex == 0 or layerIndex > 0xFFFF:
+            return
+
+        # Find out which layers should be get the exception
+        layer1 = composedLayers[layerIndex - 1]
+        layer2 = composedLayers[layerIndex]
+        if layer2.master != layer1.master:
+            # Can't add kerning between different masters
+            return False
+
+        if c == "d":
+            # Both layers should get the exception
+            layer1.setNextKerningExeption_forLayer_direction_(
+                True, layer2, self.direction
+            )
+            layer2.setPreviousKerningExeption_forLayer_direction_(
+                True, layer1, self.direction
+            )
+        elif c == "a":
+            # First layer should get exception
+            layer1.setNextKerningExeption_forLayer_direction_(
+                True, layer2, self.direction
+            )
+        elif c == "s":
+            # First layer should get exception
+            layer2.setPreviousKerningExeption_forLayer_direction_(
+                True, layer1, self.direction
+            )
+        elif c == "D":
+            # Remove kerning exception for both layers
+            layer1.setNextKerningExeption_forLayer_direction_(
+                False, layer2, self.direction
+            )
+            layer2.setPreviousKerningExeption_forLayer_direction_(
+                False, layer1, self.direction
+            )
+        elif c == "A":
+            # Remove kerning exception for first layer
+            layer1.setNextKerningExeption_forLayer_direction_(
+                False, layer2, self.direction
+            )
+        elif c == "S":
+            # Remove kerning exception for second layer
+            layer2.setPreviousKerningExeption_forLayer_direction_(
+                False, layer1, self.direction
+            )
+        else:
+            return False
+        return True
 
     @objc.python_method
     def applyKerning(self, layer1, layer2, delta, direction=LTR):
