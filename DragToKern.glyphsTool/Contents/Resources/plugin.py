@@ -40,7 +40,8 @@ class DragToKern(SelectTool):
         layer.
         """
         # Get the mouse click location and convert it to local coordinates
-        gv = self.editViewController().graphicView()
+        evc = self.editViewController()
+        gv = evc.graphicView()
         loc = gv.convertPoint_fromView_(theEvent.locationInWindow(), None)
         # Which layer is at the mouse click location?
         layerIndex = gv.layerIndexForPoint_(loc)
@@ -48,8 +49,9 @@ class DragToKern(SelectTool):
         self.drag_start = loc
 
         # What should be modified? Kerning, LSB, RSB, or both SBs?
-        alt = self.windowController().AltKey()
-        cmd = self.windowController().CommandKey()
+        wc = self.windowController()
+        alt = wc.AltKey()
+        cmd = wc.CommandKey()
         if alt:
             if cmd:
                 # alt + cmd
@@ -62,40 +64,39 @@ class DragToKern(SelectTool):
             # No modifiers
             self.mode = "kern"
 
+        composedLayers = evc.composedLayers
+
+        if layerIndex > 0xFFFF:
+            # No layer (maxint) can't be modified
+            self.cancel_operation()
+            return
+
         if self.mode == "kern":
             # Kerning between two glyphs will be modified
-            if layerIndex == 0 or layerIndex > 0xFFFF:
+            if layerIndex == 0:
                 # First layer (0) or no layer (maxint) can't be kerned
-                self.layer1 = None
-                self.layer2 = None
-                self.drag_start = None
+                self.cancel_operation()
                 return
 
             # Find out which layers should be kerned
-            layers = self.editViewController().composedLayers
-            self.layer1 = layers[layerIndex - 1]
-            self.layer2 = layers[layerIndex]
+            self.layer1 = composedLayers[layerIndex - 1]
+            self.layer2 = composedLayers[layerIndex]
             if self.layer2.master != self.layer1.master:
                 # Can't add kerning between different masters
-                self.layer1 = None
-                self.layer2 = None
-                self.drag_start = None
+                self.cancel_operation()
                 return
-            return
-        
-        # Metrics of one glyph will be modified
-        if layerIndex > 0xFFFF:
-            # No layer (maxint) can't be modified
-            self.layer1 = None
-            self.layer2 = None
-            self.drag_start = None
-            return
 
-        layers = self.editViewController().composedLayers
-        self.layer1 = layers[layerIndex]
-        # print(self.layer1.parent.name, self.mode)
-        if self.layer1 is not None:
-            self.layer1.parent.beginUndo()
+        else:
+            # Metrics of one glyph will be modified
+            self.layer2 = composedLayers[layerIndex]
+
+        self.layer2.parent.beginUndo()
+
+    @objc.python_method
+    def cancel_operation(self):
+        self.layer1 = None
+        self.layer2 = None
+        self.drag_start = None
 
     def mouseDragged_(self, theEvent):
         """
@@ -118,27 +119,19 @@ class DragToKern(SelectTool):
         needsRedraw = False
         if not LIVE_UPDATE:
             if self.drag_start is None:
-                self.layer1 = None
-                self.layer2 = None
+                self.cancel_operation()
                 return
-            
+
             needsRedraw = self.handleDrag(theEvent)
 
-        self.drag_start = None
-        self.layer2 = None
-        if self.mode == "kern" or self.mode is None:
-            self.layer1 = None
-            self.mode = None
-            return
-
         # For sidebearing modifications, end the undo block
-        if self.layer1 is not None:
-            self.layer1.parent.endUndo()
+        if self.layer2 is not None:
+            self.layer2.parent.endUndo()
             if needsRedraw:
                 self.editViewController().forceRedraw()
 
-        self.layer1 = None
         self.mode = None
+        self.cancel_operation()
 
     @objc.python_method
     def metricsAreLocked(self, layer):
@@ -154,9 +147,12 @@ class DragToKern(SelectTool):
     @objc.python_method
     def handleDrag(self, theEvent):
         """
-        Get the current location while the mouse is dragging.
+        Get the current location while the mouse is dragging. Returns True if
+        the view needs a redraw, i.e. the kerning or metrics were modified.
         """
-        if self.layer1 is None:
+        if self.layer2 is None:
+            return
+        if self.drag_start is None:
             return
 
         evc = self.editViewController()
@@ -167,23 +163,23 @@ class DragToKern(SelectTool):
         if delta != 0:
             # Only "move" can be applied for linked metrics
             if self.mode == "move":
-                self.layer1.LSB += delta
-                self.layer1.width -= delta
+                self.layer2.LSB += delta
+                self.layer2.width -= delta
                 return True
 
-            if self.metricsAreLocked(self.layer1):
+            if self.metricsAreLocked(self.layer2):
                 return False
 
             if self.mode == "kern":
                 self.applyKerning(self.layer1, self.layer2, delta)
                 return False
-            
+
             if self.mode == "LSB":
-                self.layer1.LSB += delta
+                self.layer2.LSB += delta
                 return True
-            
+
             if self.mode == "RSB":
-                self.layer1.RSB += delta
+                self.layer2.RSB += delta
                 return True
 
         return False
@@ -206,11 +202,15 @@ class DragToKern(SelectTool):
 
         # classKerning = font.kerningForPair(masterId, glyph1Key, glyph2Key)
 
-        kerning = layer2.previousKerningForLayer_direction_(layer1, 0)  # 0 is LTR
+        kerning = layer2.previousKerningForLayer_direction_(
+            layer1, 0 # self.direction
+        )
         # Glyphs 3 returns "no kerning" as None, Glyphs 2 as maxint
         if kerning is None or kerning > 0xFFFF:
+            # Kern pair didn't exist, set the kerning to the delta value
             kerning = delta
         else:
+            # Kern pair existed before, add the delta value
             kerning += delta
 
         # # If modifier keys are pressed, make an exception
