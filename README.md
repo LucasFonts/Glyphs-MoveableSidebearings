@@ -7,12 +7,38 @@ clicking the toolbar icon that shows _kT_.
 
 Just drag any glyph in your edit view to adjust its kerning.
 
+![](media/DragToKern.gif)
+
+To add or remove kerning exceptions, you can use shortcut keys. The kerning
+pair on which those shortcuts operate is always the glyph at the current mouse
+position and the glyph to the left of it.
+
+- **A** – Make an exception for the right side of the left glyph
+- **S** – Make an exception for the left side of the right glyph
+- **D** – Make exceptions for both glyphs
+- **Shift+A** – Remove the exception for the right side of the left glyph
+- **Shift+S** – Remove the exception for the left side of the right glyph
+- **Shift+D** – Remove the exceptions for both glyphs
+
+This is best illustrated with an example:
+
+![](media/mouse.png)
+
+Hovering over the **ö**, the shortcuts will:
+
+- **A** – Make an exception for the **T** with the **o group**
+- **S** – Make an exception for the **T group** with the **ö**
+- **D** – Make exceptions for **T** with **ö**
+- **Shift+A** – Remove the exception for the **T** with the **o group**
+- **Shift+S** – Remove the exception for the **T group** with the **ö**
+- **Shift+D** – Remove the exceptions for **T** with **ö**
+
 Despite its name, you can also use this tool to change the spacing by holding
 any modifier keys when starting to drag:
 
 - **Option** – Change the left sidebearing
 - **Command** – Change the right sidebearing
-- **Option + Command** – Move the outline inside its current width
+- **Option+Command** – Move the outline inside its current width
 
 ## Known issues
 
