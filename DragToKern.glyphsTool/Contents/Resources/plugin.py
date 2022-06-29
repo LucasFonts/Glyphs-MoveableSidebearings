@@ -73,8 +73,9 @@ class DragToKern(SelectTool):
 
         if self.mode == "kern":
             # Kerning between two glyphs will be modified
-            if layerIndex == 0:
+            if layerIndex == 0 or not gv.doKerning():
                 # First layer (0) or no layer (maxint) can't be kerned
+                # Don't edit if kerning is not shown in the view
                 self.cancel_operation()
                 return
 
@@ -88,6 +89,11 @@ class DragToKern(SelectTool):
 
         else:
             # Metrics of one glyph will be modified
+            if not gv.doSpacing() and self.mode != "move":
+                # Don't edit if spacing is locked in the view
+                self.cancel_operation()
+                return
+
             self.layer2 = composedLayers[layerIndex]
 
         self.layer2.parent.beginUndo()
