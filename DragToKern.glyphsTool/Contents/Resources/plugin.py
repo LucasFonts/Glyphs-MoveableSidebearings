@@ -124,7 +124,6 @@ class DragToKern(SelectTool):
 
             needsRedraw = self.handleDrag(theEvent)
 
-        # For sidebearing modifications, end the undo block
         if self.layer2 is not None:
             self.layer2.parent.endUndo()
             if needsRedraw:
@@ -172,7 +171,7 @@ class DragToKern(SelectTool):
 
             if self.mode == "kern":
                 self.applyKerning(self.layer1, self.layer2, delta)
-                return False
+                return False  # Kerning changes already trigger a redraw
 
             if self.mode == "LSB":
                 self.layer2.LSB += delta
