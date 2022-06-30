@@ -25,8 +25,12 @@ except:
 from GlyphsApp.plugins import SelectTool
 
 
+DRAW_LABELS = False
 LIVE_UPDATE = True
-SNAP_TOLERANCE = 16
+SNAP_TOLERANCE = 14
+COLOR_R = 0.9
+COLOR_G = 0.1
+COLOR_B = 0.0
 COLOR_ALPHA = 0.5
 
 
@@ -44,13 +48,16 @@ class DragToKern(SelectTool):
         self.lckCursor = NSCursor.operationNotAllowedCursor()
         self.cursor = self.stdCursor
         self.colorSBOuter = NSColor.colorWithCalibratedRed_green_blue_alpha_(
-            0.9, 0.1, 0.0, COLOR_ALPHA
+            COLOR_R, COLOR_G, COLOR_B, COLOR_ALPHA
         )
         self.colorSBInner = NSColor.colorWithCalibratedRed_green_blue_alpha_(
-            0.9, 0.1, 0.0, 0.0
+            COLOR_R, COLOR_G, COLOR_B, 0.0
         )
         self.colorLabel = NSColor.colorWithCalibratedRed_green_blue_alpha_(
-            0.9, 0.1, 0.0, COLOR_ALPHA
+            COLOR_R, COLOR_G, COLOR_B, COLOR_ALPHA
+        )
+        self.colorBox = NSColor.colorWithCalibratedRed_green_blue_alpha_(
+            1.0, 1.0, 1.0, 0.96
         )
 
     def standardCursor(self):
@@ -62,6 +69,9 @@ class DragToKern(SelectTool):
         self.mouse_position = (0, 0)
         self.drag_start = None
         self.direction = LTR
+        self.active_metric = None
+        self.handle_x = None
+        self.width = None
 
     @objc.python_method
     def activate(self):
@@ -88,11 +98,6 @@ class DragToKern(SelectTool):
         super(DragToKern, self).keyDown_(theEvent)
 
     @objc.python_method
-    @property
-    def dragging(self):
-        return self.drag_start is not None
-
-    @objc.python_method
     def mouseDidMove(self, notification):
         Glyphs.redraw()
 
@@ -112,28 +117,38 @@ class DragToKern(SelectTool):
         # Note the kerning direction
         self.direction = evc.direction
 
-        # What should be modified? Kerning, LSB, RSB, or both SBs?
-        wc = self.windowController()
-        alt = wc.AltKey()
-        cmd = wc.CommandKey()
-        if alt:
-            if cmd:
-                # alt + cmd
-                self.mode = "move"
-            else:
-                self.mode = "LSB"
-        elif cmd:
-            self.mode = "RSB"
-        else:
-            # No modifiers
-            self.mode = "kern"
-
-        composedLayers = evc.composedLayers
-
         if layerIndex > 0xFFFF:
             # No layer (maxint) can't be modified
             self.cancel_operation()
             return
+
+        # Collect some info about the clicked layer
+        composedLayers = evc.composedLayers
+        layer = composedLayers[layerIndex]
+        layerOrigin = gv.cachedPositionAtIndex_(layerIndex)
+
+        # What should be modified? Kerning, LSB, RSB, or both SBs?
+
+        # Check if the click was at a sidebearing handle
+        result = self.checkHandleLocation(loc, gv, layer, layerOrigin)
+        if result is None:
+            self.active_metric = None
+        else:
+            self.active_metric = result[0][0]
+
+        wc = self.windowController()
+        if wc.AltKey():
+            self.mode = "move"
+        elif wc.CommandKey():
+            # Force kerning mode
+            self.mode = "kern"
+        elif self.active_metric == "LSB":
+            self.mode = "LSB"
+        elif self.active_metric == "RSB":
+            self.mode = "RSB"
+        else:
+            # No modifiers
+            self.mode = "kern"
 
         if self.mode == "kern":
             # Kerning between two glyphs will be modified
@@ -215,6 +230,7 @@ class DragToKern(SelectTool):
         self.direction = LTR
         self.mode = None
         self.cancel_operation()
+        self.active_metric = None
         # self.setStdCursor()
 
     @objc.python_method
@@ -261,7 +277,7 @@ class DragToKern(SelectTool):
                 return False  # Kerning changes already trigger a redraw
 
             if self.mode == "LSB":
-                self.layer2.LSB += delta
+                self.layer2.LSB -= delta
                 return True
 
             if self.mode == "RSB":
@@ -340,8 +356,6 @@ class DragToKern(SelectTool):
             # Kern pair existed before, add the delta value
             value += delta
 
-        # print(layer1.parent.name, layer2.parent.name, value, delta, direction)
-
         if direction == LTR:
             layer2.setPreviousKerning_forLayer_direction_(
                 value, layer1, direction
@@ -358,36 +372,52 @@ class DragToKern(SelectTool):
         gv.drawLayer_atPoint_asActive_attributes_(
             layer, layerOrigin, active, attributes
         )
-        if not self.dragging:
-            self.drawHandles(gv, layer, layerOrigin)
+        if not gv.doSpacing():
+            # Spacing is locked in edit view
+            return
+        if self.metricsAreLocked(layer):
+            # Layer gets metrics from some other layer
+            return
+
+        if self.drag_start is None:
+            result = self.checkHandles(gv, layer, layerOrigin)
+            if result is not None:
+                metric, handle_x, width = result
+                self._drawHandle(handle_x, metric)
+                if DRAW_LABELS:
+                    self._drawTextLabel(handle_x, width, metric)
 
     def drawMetricsForLayer_atPoint_asActive_(
         self, layer, layerOrigin, active
     ):
         pass
 
-    # def drawBackgroundForLayer_atPoint_asActive_(
-    #     self, layer, layerOrigin, active
-    # ):
-    #     self.drawHandles(layer, layerOrigin)
+    @objc.python_method
+    def checkHandles(self, graphicView, layer, layerOrigin):
+        """
+        Check if the mouse pointer is at a possible metrics handle location.
+        Called on MOUSEMOVED via drawLayer_atPoint_asActive_attributes_.
+        """
+        theEvent = Glyphs.currentEvent()
+        self.mouse_position = graphicView.convertPoint_fromView_(
+            theEvent.locationInWindow(), None
+        )
+        return self.checkHandleLocation(
+            self.mouse_position, graphicView, layer, layerOrigin
+        )
 
     @objc.python_method
-    def getScale(self):
-        return self.editViewController().graphicView().scale()
-
-    @objc.python_method
-    def drawHandles(self, graphicView, layer, layerOrigin):
+    def checkHandleLocation(self, location, graphicView, layer, layerOrigin):
+        """
+        Check if the location of an event is at a possible metrics handle
+        location.
+        """
         try:
             master = layer.master
         except KeyError:
             return
 
-        theEvent = Glyphs.currentEvent()
-        self.mouse_position = graphicView.getActiveLocation_(theEvent)
-        self.mouse_position = loc = graphicView.convertPoint_fromView_(
-            theEvent.locationInWindow(), None
-        )
-        x, _y = loc
+        x, y = location
         scale = graphicView.scale()
         desc = master.descender * scale
         asc = master.ascender * scale
@@ -396,26 +426,21 @@ class DragToKern(SelectTool):
         layerWidth = layer.width * scale
 
         # Don't draw handles outside ascender/descender
-        # if y < desc or y > asc:
-        #     self.active_metric = None
-        #     return
+        if y < desc or y > asc:
+            return
 
         offsetX = x - layerOrigin.x
 
         if offsetX < 0 or offsetX > layerWidth:
             # Mouse is outside the glyph
-            self.active_metric = None
             return
 
-        snap_tolerance = SNAP_TOLERANCE
-
-        if offsetX > snap_tolerance and offsetX < layerWidth - snap_tolerance:
+        if offsetX > SNAP_TOLERANCE and offsetX < layerWidth - SNAP_TOLERANCE:
             # Mouse is too far inside the glyph
-            self.active_metric = None
             return
 
-        if offsetX < snap_tolerance:
-            handle_x = (layerOrigin.x, snap_tolerance)
+        if offsetX < SNAP_TOLERANCE:
+            handle_x = (layerOrigin.x, SNAP_TOLERANCE)
             metric = (
                 "LSB",
                 layer.LSB,
@@ -426,8 +451,8 @@ class DragToKern(SelectTool):
             width = layerOrigin.x
         else:
             handle_x = (
-                layerOrigin.x + layerWidth - snap_tolerance,
-                snap_tolerance,
+                layerOrigin.x + layerWidth - SNAP_TOLERANCE,
+                SNAP_TOLERANCE,
             )
             metric = (
                 "RSB",
@@ -437,12 +462,15 @@ class DragToKern(SelectTool):
                 asc,
             )
             width = layerOrigin.x + layerWidth
-        self.active_metric = metric
-        self._drawHandle(handle_x, width, metric)
-        self._drawTextLabel(handle_x, width, metric)
+        return metric, handle_x, width
 
     @objc.python_method
-    def _drawHandle(self, handle_x, width, metric, alpha=0.3, locked=False):
+    def _drawHandle(self, handle_x, metric):
+        if handle_x is None:
+            return
+        if metric is None:
+            return
+
         pos, w = handle_x
         metric_name, value, layer, desc, asc = metric
         gradient = NSGradient.alloc().initWithStartingColor_endingColor_(
@@ -458,14 +486,21 @@ class DragToKern(SelectTool):
 
     @objc.python_method
     def _drawTextLabel(self, handle_x, width, metric, locked=False):
+        if handle_x is None:
+            return
+        if width is None:
+            return
+        if metric is None:
+            return
+
         text_size = 11
         text_dist = 16
         metric_name, value, layer, desc, asc = metric
         if locked:
             shown_value = "🔒︎"
-        elif metric_name == "LSB" and self.dragging:
+        elif metric_name == "LSB" and self.drag_start is not None:
             shown_value = "∆%g = %g" % (value, layer.LSB - value)
-        elif metric_name == "RSB" and self.dragging:
+        elif metric_name == "RSB" and self.drag_start is not None:
             shown_value = "∆%g = %g" % (value, layer.RSB + value)
         else:
             shown_value = "%g" % value
@@ -482,14 +517,14 @@ class DragToKern(SelectTool):
         bh = bbox.height
 
         text_pt = NSPoint()
-        text_pt.y = self.mouse_position[1] - asc
+        text_pt.y = self.mouse_position[1]
         if metric_name == "LSB":
-            if self.dragging:
+            if self.drag_start is not None:
                 text_pt.x = handle_x[0] + text_dist
             else:
                 text_pt.x = width + text_dist
         elif metric_name == "RSB":
-            if self.dragging:
+            if self.drag_start is not None:
                 text_pt.x = handle_x[0] - text_dist - bw
             else:
                 text_pt.x = width - text_dist - bw
@@ -497,6 +532,13 @@ class DragToKern(SelectTool):
             text_pt.x = self.mouse_position[0] - text_dist - bw
 
         rr = NSRect(origin=(text_pt.x, text_pt.y), size=(bw, bh))
+        outer = NSRect(
+            origin=(text_pt.x - 2, text_pt.y - 1), size=(bw + 4, bh + 2)
+        )
+        self.colorBox.set()
+        NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
+            outer, 4, 4
+        ).fill()
         myString.drawInRect_withAttributes_(rr, attrs)
 
     @objc.python_method
