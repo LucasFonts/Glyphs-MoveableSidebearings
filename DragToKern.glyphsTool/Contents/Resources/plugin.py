@@ -13,7 +13,6 @@ from AppKit import (
     NSFontWeightRegular,
     NSForegroundColorAttributeName,
     NSGradient,
-    NSNotFound,
     NSPoint,
     NSRect,
     NSString,
