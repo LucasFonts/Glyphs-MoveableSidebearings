@@ -11,6 +11,7 @@ from AppKit import (
     NSFontAttributeName,
     NSFontWeightRegular,
     NSForegroundColorAttributeName,
+    NSGradient,
     NSPoint,
     NSRect,
     NSString,
@@ -25,7 +26,8 @@ from GlyphsApp.plugins import SelectTool
 
 
 LIVE_UPDATE = True
-SNAP_TOLERANCE = 8
+SNAP_TOLERANCE = 16
+COLOR_ALPHA = 0.5
 
 
 class DragToKern(SelectTool):
@@ -41,6 +43,15 @@ class DragToKern(SelectTool):
         self.stdCursor = NSCursor.resizeLeftRightCursor()
         self.lckCursor = NSCursor.operationNotAllowedCursor()
         self.cursor = self.stdCursor
+        self.colorSBOuter = NSColor.colorWithCalibratedRed_green_blue_alpha_(
+            0.9, 0.1, 0.0, COLOR_ALPHA
+        )
+        self.colorSBInner = NSColor.colorWithCalibratedRed_green_blue_alpha_(
+            0.9, 0.1, 0.0, 0.0
+        )
+        self.colorLabel = NSColor.colorWithCalibratedRed_green_blue_alpha_(
+            0.9, 0.1, 0.0, COLOR_ALPHA
+        )
 
     def standardCursor(self):
         return self.cursor
@@ -347,40 +358,37 @@ class DragToKern(SelectTool):
         gv.drawLayer_atPoint_asActive_attributes_(
             layer, layerOrigin, active, attributes
         )
+        if not self.dragging:
+            self.drawHandles(gv, layer, layerOrigin)
 
-    # def drawMetricsForLayer_atPoint_asActive_(
-    #     self, layer, layerOrigin, active
-    # ):
-    #     pass
-
-    def drawBackgroundForLayer_atPoint_asActive_(
+    def drawMetricsForLayer_atPoint_asActive_(
         self, layer, layerOrigin, active
     ):
-        self.drawHandles(layer, layerOrigin, active)
+        pass
+
+    # def drawBackgroundForLayer_atPoint_asActive_(
+    #     self, layer, layerOrigin, active
+    # ):
+    #     self.drawHandles(layer, layerOrigin)
 
     @objc.python_method
     def getScale(self):
         return self.editViewController().graphicView().scale()
 
     @objc.python_method
-    def drawHandles(self, layer, layerOrigin, active):
+    def drawHandles(self, graphicView, layer, layerOrigin):
         try:
             master = layer.master
         except KeyError:
             return
 
-        evc = self.editViewController()
-        gv = evc.graphicView()
         theEvent = Glyphs.currentEvent()
-        self.mouse_position = gv.getActiveLocation_(theEvent)
-        self.mouse_position = loc = gv.convertPoint_fromView_(
+        self.mouse_position = graphicView.getActiveLocation_(theEvent)
+        self.mouse_position = loc = graphicView.convertPoint_fromView_(
             theEvent.locationInWindow(), None
         )
-        # Which layer is at the mouse location?
-        # layerIndex = gv.layerIndexForPoint_(loc)
-        # composedLayers = evc.composedLayers
-        x, y = loc
-        scale = gv.scale()
+        x, _y = loc
+        scale = graphicView.scale()
         desc = master.descender * scale
         asc = master.ascender * scale
         asc += layerOrigin.y
@@ -431,28 +439,28 @@ class DragToKern(SelectTool):
             width = layerOrigin.x + layerWidth
         self.active_metric = metric
         self._drawHandle(handle_x, width, metric)
-
-        # print(x, y, desc, asc, layer.parent.name, layerOrigin)
+        self._drawTextLabel(handle_x, width, metric)
 
     @objc.python_method
     def _drawHandle(self, handle_x, width, metric, alpha=0.3, locked=False):
         pos, w = handle_x
         metric_name, value, layer, desc, asc = metric
-        NSColor.colorWithCalibratedRed_green_blue_alpha_(
-            0.9, 0.1, 0.0, alpha
-        ).set()
+        gradient = NSGradient.alloc().initWithStartingColor_endingColor_(
+            self.colorSBOuter, self.colorSBInner
+        )
         rect = NSRect(
             origin=(pos, desc),
             size=(w, asc - desc),
         )
-        NSBezierPath.bezierPathWithRect_(rect).fill()
-        self._drawTextLabel(handle_x, width, metric, alpha, locked)
+        angle = -180 if metric_name == "RSB" else 0
+        bezierPath = NSBezierPath.bezierPathWithRect_(rect)
+        gradient.drawInBezierPath_angle_(bezierPath, angle)
 
     @objc.python_method
-    def _drawTextLabel(self, handle_x, width, metric, alpha=0.3, locked=False):
+    def _drawTextLabel(self, handle_x, width, metric, locked=False):
         text_size = 11
-        text_dist = 12
-        metric_name, value, layer, _, _ = metric
+        text_dist = 16
+        metric_name, value, layer, desc, asc = metric
         if locked:
             shown_value = "🔒︎"
         elif metric_name == "LSB" and self.dragging:
@@ -466,9 +474,7 @@ class DragToKern(SelectTool):
             NSFontAttributeName: NSFont.monospacedDigitSystemFontOfSize_weight_(
                 text_size, NSFontWeightRegular
             ),
-            NSForegroundColorAttributeName: NSColor.colorWithCalibratedRed_green_blue_alpha_(
-                0.9, 0.1, 0.0, alpha
-            ),
+            NSForegroundColorAttributeName: self.colorLabel,
         }
         myString = NSString.string().stringByAppendingString_(shown_value)
         bbox = myString.sizeWithAttributes_(attrs)
@@ -476,7 +482,7 @@ class DragToKern(SelectTool):
         bh = bbox.height
 
         text_pt = NSPoint()
-        text_pt.y = self.mouse_position[1]
+        text_pt.y = self.mouse_position[1] - asc
         if metric_name == "LSB":
             if self.dragging:
                 text_pt.x = handle_x[0] + text_dist
