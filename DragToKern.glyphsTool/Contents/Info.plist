@@ -13,13 +13,13 @@
 	<key>CFBundleName</key>
 	<string>DragToKern</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.2</string> <!-- 1.0 -->
+	<string>0.4</string> <!-- 1.0 -->
 	<key>CFBundleVersion</key>
-	<string>2</string> <!-- 123 -->
-	<!--<key>UpdateFeedURL</key>
+	<string>4</string> <!-- 123 -->
+	<key>UpdateFeedURL</key>
 	<string>https://raw.githubusercontent.com/LucasFonts/Glyphs-MoveableSidebearings/master/DragToKern.glyphsTool/Contents/Info.plist</string>
 	<key>productPageURL</key>
-	<string>https://github.com/LucasFonts/Glyphs-MoveableSidebearings</string>-->
+	<string>https://github.com/LucasFonts/Glyphs-MoveableSidebearings</string>
 	<key>productReleaseNotes</key>
 	<string>First release.</string>
 	<key>NSHumanReadableCopyright</key>

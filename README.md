@@ -65,3 +65,7 @@ shows unkerned letters.
   just go out of sync.
 - Undo for metrics and kerning changes only works if you make the affected
   glyph the current glyph (e.g. by double-clicking it with the select tool)
+
+# Copyright
+
+© 2022 by LucasFonts GmbH. Main programmer: Jens Kutílek. Licensed under the [MIT license](LICENSE).
