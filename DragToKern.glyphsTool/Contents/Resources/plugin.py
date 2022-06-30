@@ -5,6 +5,7 @@ import objc
 
 from AppKit import (
     NSBezierPath,
+    NSClassFromString,
     NSColor,
     NSCursor,
     NSFont,
@@ -24,6 +25,7 @@ except:
     from GlyphsApp import LTR, RTL
 from GlyphsApp.plugins import SelectTool
 
+GlyphsToolSelect = NSClassFromString("GlyphsToolSelect")
 
 DRAW_LABELS = False
 LIVE_UPDATE = True
@@ -106,6 +108,13 @@ class DragToKern(SelectTool):
         Get the mouse down location to record the start coordinate and dragged
         layer.
         """
+        if theEvent.clickCount() == 2:
+            wc = self.windowController()
+            wc.setToolForClass_(GlyphsToolSelect)
+            toolDelegate = wc.toolEventDelegate()
+            if toolDelegate.respondsToSelector_("selectGlyph:"):
+                toolDelegate.selectGlyph_(theEvent)
+            return
         # Get the mouse click location and convert it to local coordinates
         evc = self.editViewController()
         gv = evc.graphicView()
@@ -179,6 +188,10 @@ class DragToKern(SelectTool):
             self.layer2 = composedLayers[layerIndex]
 
         self.layer2.parent.beginUndo()
+
+    def cancelOperation_(self, sender):
+        wc = self.windowController()
+        wc.setToolForClass_(GlyphsToolSelect)
 
     @objc.python_method
     def cancel_operation(self):
