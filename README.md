@@ -48,10 +48,10 @@ Despite its name, you can also use this tool to change the spacing.
 Hover over a glyph’s left or right edge, and red indicators will appear. Click and
 drag while the indicators are shown to modify the sidebearings.
 
+![](media/DragToKern-Spacing.gif)
+
 Click and drag while the **Option** key is pressed to move the glyph’s outline
 inside its current width.
-
-![](media/DragToKern-Spacing.gif)
 
 **Tip:** To avoid changing any kerning values accidentally while spacing, turn
 off the kerning by hitting the _To_ icon at the bottom of the window until it
