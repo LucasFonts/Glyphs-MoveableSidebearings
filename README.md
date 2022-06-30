@@ -3,13 +3,17 @@
 Apply kerning and edit spacing by dragging glyphs with your mouse.
 
 DragToKern is a tool plugin. Activate it by pressing the shortcut key _K_ or by
-clicking the toolbar icon that shows _kT_.
+clicking the toolbar icon that shows _kTd_.
 
 ## Mouse Kerning
 
 Just drag any glyph in your edit view to adjust its kerning.
 
 ![](media/DragToKern.gif)
+
+**Tip:** If the sidebearing handles get in your way, press the **Command** key
+before dragging to force the kerning mode, or lock the spacing by hitting the
+_To_ icon at the bottom of the window until it has a small lock.
 
 ## Kerning Exceptions
 
@@ -39,35 +43,25 @@ Hovering over the **ö**, the shortcuts will:
 
 ## Mouse Spacing
 
-Despite its name, you can also use this tool to change the spacing by holding
-any modifier keys when starting to drag:
+Despite its name, you can also use this tool to change the spacing.
 
-- **Option** – Change the left sidebearing
-- **Command** – Change the right sidebearing
-- **Option+Command** – Move the outline inside its current width
+Hover over a glyph’s left or right edge, and red indicators will appear. Click and
+drag while the indicators are shown to modify the sidebearings.
+
+Click and drag while the **Option** key is pressed to move the glyph’s outline
+inside its current width.
+
+![](media/DragToKern-Spacing.gif)
+
+**Tip:** To avoid changing any kerning values accidentally while spacing, turn
+off the kerning by hitting the _To_ icon at the bottom of the window until it
+shows unkerned letters.
 
 ## Known issues
 
 - If the current master’s metrics are linked to another master, dragging does
-  nothing. The linking should probably be indicated somehow when trying to
-  drag.
+  nothing. In this case the red handles do not appear.
 - Metrics keys are not considered when dragging the spacing. The linked metrics
   just go out of sync.
 - Undo for metrics and kerning changes only works if you make the affected
   glyph the current glyph (e.g. by double-clicking it with the select tool)
-
-
-# MoveableSidebearings
-
-Draggable sidebearings for Glyphs.app. This plugin provides an alternate method
-to modify the sidebearings with the mouse. You should probably only use one or
-the other plugin.
-
-MoveableSidebearings is a reporter plugin, so it can be activated via the _View_
-menu:
-
-_View > Show Moveable Sidebearings_
-
-<img src="media/MetricsHandles.png">
-
-Hover over the sidebearings of the active glyph and drag them to adjust.
