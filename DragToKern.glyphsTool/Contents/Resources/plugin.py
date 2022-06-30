@@ -277,7 +277,7 @@ class DragToKern(SelectTool):
                 return False  # Kerning changes already trigger a redraw
 
             if self.mode == "LSB":
-                self.layer2.LSB -= delta
+                self.layer2.LSB += delta
                 return True
 
             if self.mode == "RSB":
