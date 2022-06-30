@@ -68,4 +68,4 @@ shows unkerned letters.
 
 # Copyright
 
-© 2022 by LucasFonts GmbH. Main programmer: Jens Kutílek. Licensed under the [MIT license](LICENSE).
+© 2022 by [LucasFonts](https://www.lucasfonts.com/). Main programmer: Jens Kutílek. Licensed under the [MIT license](LICENSE).
