@@ -412,6 +412,9 @@ class DragToKern(SelectTool):
         Called on MOUSEMOVED via drawLayer_atPoint_asActive_attributes_.
         """
         theEvent = Glyphs.currentEvent()
+        if theEvent is None:
+            return
+
         self.mouse_position = graphicView.convertPoint_fromView_(
             theEvent.locationInWindow(), None
         )
