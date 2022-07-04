@@ -1,10 +1,10 @@
-# DragToKern
+# Mouse Kerning and Spacing a.k.a. DragToKern
 
 Apply kerning and edit spacing by dragging glyphs with your mouse.
 
-DragToKern is a tool plugin. Activate it by pressing the shortcut key _K_ or by
-clicking the toolbar icon that shows _kTd_. Double-click a glyph to go back to
-the _Select_ tool.
+_Mouse Kerning and Spacing_ is a tool plugin. Activate it by pressing the
+shortcut key _K_ or by clicking the toolbar icon that shows _kTd_. Double-click
+a glyph to go back to the _Select_ tool.
 
 ## Mouse Kerning
 
@@ -43,8 +43,6 @@ Hovering over the **ö**, the shortcuts will:
 - **Shift+D** – Remove the exceptions for **T** with **ö**
 
 ## Mouse Spacing
-
-Despite its name, you can also use this tool to change the spacing.
 
 Hover over a glyph’s left or right edge, and red indicators will appear. Click and
 drag while the indicators are shown to modify the sidebearings.
