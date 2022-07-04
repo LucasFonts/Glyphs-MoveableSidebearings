@@ -27,7 +27,7 @@ from GlyphsApp.plugins import SelectTool
 
 GlyphsToolSelect = NSClassFromString("GlyphsToolSelect")
 
-DRAW_LABELS = False
+DRAW_LABELS = True
 LIVE_UPDATE = True
 SNAP_TOLERANCE = 14
 COLOR_R = 0.9
@@ -213,6 +213,8 @@ class DragToKern(SelectTool):
         self.active_metric = None
         self.handle_x = None
         self.width = None
+        self.layer1 = None
+        self.layer2 = None
 
     @objc.python_method
     def activate(self):
@@ -267,6 +269,7 @@ class DragToKern(SelectTool):
 
         if layerIndex > 0xFFFF:
             # No layer (maxint) can't be modified
+            self.setLockedCursor()
             self.cancel_operation()
             return
 
@@ -277,34 +280,12 @@ class DragToKern(SelectTool):
 
         # What should be modified? Kerning, LSB, RSB, or both SBs?
 
-        # Check if the click was at a sidebearing handle
-        result = self.checkHandleLocation(loc, gv, layer, layerOrigin)
-        if result is None:
-            self.active_metric = None
-        else:
-            self.active_metric = result[0][0]
-
-        wc = self.windowController()
-        if wc.AltKey():
-            self.mode = "move"
-        elif wc.CommandKey():
-            # Force kerning mode
-            self.mode = "kern"
-        elif self.active_metric == "LSB":
-            self.mode = "LSB"
-        elif self.active_metric == "RSB":
-            self.mode = "RSB"
-        else:
-            # No modifiers
-            self.mode = "kern"
-
-        if self.mode == "kern":
+        if gv.doKerning() and gv.doSpacing():
             # Kerning between two glyphs will be modified
-            if layerIndex == 0 or not gv.doKerning():
-                # First layer (0) or no layer (maxint) can't be kerned
-                # Don't edit if kerning is not shown in the view
+            if layerIndex == 0:
+                # First layer (0) can't be kerned
+                self.setLockedCursor()
                 self.cancel_operation()
-                # self.setLockedCursor()
                 return
 
             # Find out which layers should be kerned
@@ -312,21 +293,37 @@ class DragToKern(SelectTool):
             self.layer2 = composedLayers[layerIndex]
             if self.layer2.master != self.layer1.master:
                 # Can't add kerning between different masters
+                self.setLockedCursor()
                 self.cancel_operation()
-                # self.setLockedCursor()
                 return
 
-        else:
-            # Metrics of one glyph will be modified
-            if not gv.doSpacing() and self.mode != "move":
-                # Don't edit if spacing is locked in the view
+            self.mode = "kern"
+
+        elif gv.doSpacing():
+            # Check if the click was at a sidebearing handle
+            result = self.checkHandleLocation(loc, gv, layer, layerOrigin)
+
+            if result is None:
+                self.active_metric = None
+            else:
+                self.active_metric = result[0][0]
+
+            wc = self.windowController()
+            if wc.CommandKey():
+                self.mode = "move"
+            elif self.active_metric == "LSB":
+                self.mode = "LSB"
+            elif self.active_metric == "RSB":
+                self.mode = "RSB"
+            else:
+                self.setLockedCursor()
                 self.cancel_operation()
-                # self.setLockedCursor()
                 return
 
             self.layer2 = composedLayers[layerIndex]
 
-        self.layer2.parent.beginUndo()
+        if self.layer2 is not None:
+            self.layer2.parent.beginUndo()
 
     def cancelOperation_(self, sender):
         wc = self.windowController()
@@ -370,6 +367,7 @@ class DragToKern(SelectTool):
         if not LIVE_UPDATE:
             if self.drag_start is None:
                 self.cancel_operation()
+                self.setStdCursor()
                 return
 
             needsRedraw = self.handleDrag(theEvent)
@@ -382,6 +380,7 @@ class DragToKern(SelectTool):
         self.direction = LTR
         self.mode = None
         self.cancel_operation()
+        self.setStdCursor()
         self.active_metric = None
         # self.setStdCursor()
 
@@ -410,9 +409,15 @@ class DragToKern(SelectTool):
         evc = self.editViewController()
         gv = evc.graphicView()
         loc = gv.convertPoint_fromView_(theEvent.locationInWindow(), None)
-        delta = int(round((loc.x - self.drag_start.x) / evc.scale))
+        wc = self.windowController()
+        if wc.AltKey():
+            mouseZoom = 0.1
+        else:
+            mouseZoom = 1
+        delta = (loc.x - self.drag_start.x) / evc.scale * mouseZoom
         self.drag_start = loc
-        if delta != 0:
+        if delta != 0.0:
+            delta = int(round(delta))
             # Only "move" can be applied for linked metrics
             if self.mode == "move":
                 self.layer2.LSB += delta
@@ -445,9 +450,10 @@ class DragToKern(SelectTool):
         gv.drawLayer_atPoint_asActive_attributes_(
             layer, layerOrigin, active, attributes
         )
-        if not gv.doSpacing():
-            # Spacing is locked in edit view
+        if gv.doKerning() or not gv.doSpacing():
+            # Edit view has locked spacing or is in kerning mode
             return
+
         if self.metricsAreLocked(layer):
             # Layer gets metrics from some other layer
             return
@@ -488,11 +494,14 @@ class DragToKern(SelectTool):
         Check if the location of an event is at a possible metrics handle
         location.
         """
+        if not graphicView.doSpacing():
+            return
+
         try:
             master = layer.master
         except KeyError:
             return
-
+        
         x, y = location
         scale = graphicView.scale()
         desc = master.descender * scale
