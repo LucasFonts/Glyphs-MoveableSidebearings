@@ -27,7 +27,7 @@ from GlyphsApp.plugins import SelectTool
 
 GlyphsToolSelect = NSClassFromString("GlyphsToolSelect")
 
-DRAW_LABELS = True
+DRAW_LABELS = False
 LIVE_UPDATE = True
 SNAP_TOLERANCE = 14
 COLOR_R = 0.9
