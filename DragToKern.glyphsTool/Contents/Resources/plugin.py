@@ -36,6 +36,145 @@ COLOR_B = 0.0
 COLOR_ALPHA = 0.5
 
 
+if Glyphs.versionNumber < 3.0:
+
+    def applyKerning(layer1, layer2, delta, direction=LTR):
+        """
+        Apply the kerning difference to the given layer pair.
+        """
+        value = layer2.leftKerningForLayer_(layer1)
+
+        # Glyphs 2 returns "no kerning" as maxint
+        if value > 0xFFFF:
+            # Kern pair didn't exist, set the kerning to the delta value
+            value = delta
+        else:
+            # Kern pair existed before, add the delta value
+            value += delta
+
+        if direction == LTR:
+            layer2.setLeftKerning_forLayer_(value, layer1)
+        else:
+            layer2.setLeftKerning_forLayer_(value, layer1)
+
+    def handleException(composedLayers, layerIndex, c, direction=LTR):
+        """
+        Add or remove an exception at the current location
+        """
+        if layerIndex == 0 or layerIndex > 0xFFFF:
+            return
+
+        # Find out which layers should be get the exception
+        layer1 = composedLayers[layerIndex - 1]
+        layer2 = composedLayers[layerIndex]
+        if layer2.master != layer1.master:
+            # Can't add kerning between different masters
+            return False
+
+        if c == "d":
+            # Both layers should get the exception
+            layer1.setRightKerningExeption_forLayer_(True, layer2)
+            layer2.setLeftKerningExeption_forLayer_(True, layer1)
+        elif c == "a":
+            # First layer should get exception
+            layer1.setRightKerningExeption_forLayer_(True, layer2)
+        elif c == "s":
+            # First layer should get exception
+            layer2.setLeftKerningExeption_forLayer_(True, layer1)
+        elif c == "D":
+            # Remove kerning exception for both layers
+            layer1.setRightKerningExeption_forLayer_(False, layer2)
+            layer2.setLeftKerningExeption_forLayer_(False, layer1)
+        elif c == "A":
+            # Remove kerning exception for first layer
+            layer1.setRightKerningExeption_forLayer_(False, layer2)
+        elif c == "S":
+            # Remove kerning exception for second layer
+            layer2.setLeftKerningExeption_forLayer_(False, layer1)
+        else:
+            return False
+        return True
+
+else:
+
+    def applyKerning(layer1, layer2, delta, direction=LTR):
+        """
+        Apply the kerning difference to the given layer pair.
+        """
+        value = layer2.previousKerningForLayer_direction_(layer1, direction)
+
+        # Glyphs 3 returns "no kerning" as None
+        if value is None:
+            # Kern pair didn't exist, set the kerning to the delta value
+            value = delta
+        else:
+            # Kern pair existed before, add the delta value
+            value += delta
+
+        if direction == LTR:
+            layer2.setPreviousKerning_forLayer_direction_(
+                value, layer1, direction
+            )
+        else:
+            layer2.setPreviousKerning_forLayer_direction_(
+                value, layer1, direction
+            )
+
+    def handleException(composedLayers, layerIndex, c, direction=LTR):
+        """
+        Add or remove an exception at the current location
+        """
+        if layerIndex == 0 or layerIndex > 0xFFFF:
+            return
+
+        # Find out which layers should be get the exception
+        layer1 = composedLayers[layerIndex - 1]
+        layer2 = composedLayers[layerIndex]
+        if layer2.master != layer1.master:
+            # Can't add kerning between different masters
+            return False
+
+        if c == "d":
+            # Both layers should get the exception
+            layer1.setNextKerningExeption_forLayer_direction_(
+                True, layer2, direction
+            )
+            layer2.setPreviousKerningExeption_forLayer_direction_(
+                True, layer1, direction
+            )
+        elif c == "a":
+            # First layer should get exception
+            layer1.setNextKerningExeption_forLayer_direction_(
+                True, layer2, direction
+            )
+        elif c == "s":
+            # First layer should get exception
+            layer2.setPreviousKerningExeption_forLayer_direction_(
+                True, layer1, direction
+            )
+        elif c == "D":
+            # Remove kerning exception for both layers
+            layer1.setNextKerningExeption_forLayer_direction_(
+                False, layer2, direction
+            )
+            layer2.setPreviousKerningExeption_forLayer_direction_(
+                False, layer1, direction
+            )
+        elif c == "A":
+            # Remove kerning exception for first layer
+            layer1.setNextKerningExeption_forLayer_direction_(
+                False, layer2, direction
+            )
+        elif c == "S":
+            # Remove kerning exception for second layer
+            layer2.setPreviousKerningExeption_forLayer_direction_(
+                False, layer1, direction
+            )
+        else:
+            return False
+        return True
+
+
 class DragToKern(SelectTool):
     @objc.python_method
     def settings(self):
@@ -93,7 +232,7 @@ class DragToKern(SelectTool):
             # Which layer is at the mouse click location?
             layerIndex = gv.layerIndexForPoint_(loc)
             composedLayers = evc.composedLayers
-            self.handleException(composedLayers, layerIndex, c)
+            handleException(composedLayers, layerIndex, c, self.direction)
             return
 
         # Other keys are handled by the super class
@@ -284,7 +423,7 @@ class DragToKern(SelectTool):
                 return False
 
             if self.mode == "kern":
-                self.applyKerning(
+                applyKerning(
                     self.layer1, self.layer2, delta, self.direction
                 )
                 return False  # Kerning changes already trigger a redraw
@@ -298,85 +437,6 @@ class DragToKern(SelectTool):
                 return True
 
         return False
-
-    @objc.python_method
-    def handleException(self, composedLayers, layerIndex, c):
-        """
-        Add or remove an exception at the current location
-        """
-        if layerIndex == 0 or layerIndex > 0xFFFF:
-            return
-
-        # Find out which layers should be get the exception
-        layer1 = composedLayers[layerIndex - 1]
-        layer2 = composedLayers[layerIndex]
-        if layer2.master != layer1.master:
-            # Can't add kerning between different masters
-            return False
-
-        if c == "d":
-            # Both layers should get the exception
-            layer1.setNextKerningExeption_forLayer_direction_(
-                True, layer2, self.direction
-            )
-            layer2.setPreviousKerningExeption_forLayer_direction_(
-                True, layer1, self.direction
-            )
-        elif c == "a":
-            # First layer should get exception
-            layer1.setNextKerningExeption_forLayer_direction_(
-                True, layer2, self.direction
-            )
-        elif c == "s":
-            # First layer should get exception
-            layer2.setPreviousKerningExeption_forLayer_direction_(
-                True, layer1, self.direction
-            )
-        elif c == "D":
-            # Remove kerning exception for both layers
-            layer1.setNextKerningExeption_forLayer_direction_(
-                False, layer2, self.direction
-            )
-            layer2.setPreviousKerningExeption_forLayer_direction_(
-                False, layer1, self.direction
-            )
-        elif c == "A":
-            # Remove kerning exception for first layer
-            layer1.setNextKerningExeption_forLayer_direction_(
-                False, layer2, self.direction
-            )
-        elif c == "S":
-            # Remove kerning exception for second layer
-            layer2.setPreviousKerningExeption_forLayer_direction_(
-                False, layer1, self.direction
-            )
-        else:
-            return False
-        return True
-
-    @objc.python_method
-    def applyKerning(self, layer1, layer2, delta, direction=LTR):
-        """
-        Apply the kerning difference to the given layer pair.
-        """
-        value = layer2.previousKerningForLayer_direction_(layer1, direction)
-
-        # Glyphs 3 returns "no kerning" as None, Glyphs 2 as maxint
-        if value is None or value > 0xFFFF:
-            # Kern pair didn't exist, set the kerning to the delta value
-            value = delta
-        else:
-            # Kern pair existed before, add the delta value
-            value += delta
-
-        if direction == LTR:
-            layer2.setPreviousKerning_forLayer_direction_(
-                value, layer1, direction
-            )
-        else:
-            layer2.setPreviousKerning_forLayer_direction_(
-                value, layer1, direction
-            )
 
     def drawLayer_atPoint_asActive_attributes_(
         self, layer, layerOrigin, active, attributes
