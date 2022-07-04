@@ -458,13 +458,13 @@ class DragToKern(SelectTool):
             # Layer gets metrics from some other layer
             return
 
-        if self.drag_start is None:
-            result = self.checkHandles(gv, layer, layerOrigin)
-            if result is not None:
-                metric, handle_x, width = result
+        result = self.checkHandles(gv, layer, layerOrigin)
+        if result is not None:
+            metric, handle_x, width = result
+            if self.drag_start is None:
                 self._drawHandle(handle_x, metric)
-                if DRAW_LABELS:
-                    self._drawTextLabel(handle_x, width, metric)
+            if DRAW_LABELS:
+                self._drawTextLabel(handle_x, width, metric)
 
     def drawMetricsForLayer_atPoint_asActive_(
         self, layer, layerOrigin, active
