@@ -732,61 +732,6 @@ class DragToKern(SelectTool):
         myString.drawInRect_withAttributes_(rect, attrs)
 
     @objc.python_method
-    def _drawTextLabel(self, handle_x, width, metric, locked=False):
-        if handle_x is None:
-            return
-        if width is None:
-            return
-        if metric is None:
-            return
-
-        metric_name, value, layer, desc, asc = metric
-        if locked:
-            shown_value = "🔒︎"
-        elif metric_name == "LSB":
-            shown_value = "∆%g = %g" % (self.orig_value - value, value)
-        elif metric_name == "RSB":
-            shown_value = "∆%g = %g" % (self.orig_value + value, value)
-        else:
-            shown_value = "%g" % value
-
-        attrs = {
-            NSFontAttributeName: NSFont.monospacedDigitSystemFontOfSize_weight_(
-                LABEL_TEXT_SIZE, NSFontWeightRegular
-            ),
-            NSForegroundColorAttributeName: self.colorLabel,
-        }
-        myString = NSString.string().stringByAppendingString_(shown_value)
-        bbox = myString.sizeWithAttributes_(attrs)
-        bw = bbox.width
-        bh = bbox.height
-
-        text_pt = NSPoint()
-        text_pt.y = self.mouse_position[1]
-        if metric_name == "LSB":
-            if self.drag_start is not None:
-                text_pt.x = handle_x[0] + LABEL_DIST
-            else:
-                text_pt.x = width + LABEL_DIST
-        elif metric_name == "RSB":
-            if self.drag_start is not None:
-                text_pt.x = handle_x[0] - LABEL_DIST - bw
-            else:
-                text_pt.x = width - LABEL_DIST - bw
-        else:
-            text_pt.x = self.mouse_position[0] - LABEL_DIST - bw
-
-        rr = NSRect(origin=(text_pt.x, text_pt.y), size=(bw, bh))
-        outer = NSRect(
-            origin=(text_pt.x - 2, text_pt.y - 1), size=(bw + 4, bh + 2)
-        )
-        self.colorBox.set()
-        NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-            outer, 4, 4
-        ).fill()
-        myString.drawInRect_withAttributes_(rr, attrs)
-
-    @objc.python_method
     def __file__(self):
         """Please leave this method unchanged"""
         return __file__
