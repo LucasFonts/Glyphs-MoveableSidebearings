@@ -41,7 +41,7 @@ LABEL_VERT_INNER_BIAS = 0.3
 
 if Glyphs.versionNumber < 3.0:
 
-    def applyKerning(layer1, layer2, delta, direction=LTR):
+    def applyKerning(layer1, layer2, delta, step=1, direction=LTR):
         """
         Apply the kerning difference to the given layer pair.
         """
@@ -50,10 +50,10 @@ if Glyphs.versionNumber < 3.0:
         # Glyphs 2 returns "no kerning" as maxint
         if value is None or value > 0xFFFF:
             # Kern pair didn't exist, set the kerning to the delta value
-            value = delta
+            value = int(round(delta / step) * step)
         else:
             # Kern pair existed before, add the delta value
-            value += delta
+            value = int(round((value + delta) / step) * step)
 
         if direction == LTR:
             layer2.setLeftKerning_forLayer_(value, layer1)
@@ -100,7 +100,7 @@ if Glyphs.versionNumber < 3.0:
 
 else:
 
-    def applyKerning(layer1, layer2, delta, direction=LTR):
+    def applyKerning(layer1, layer2, delta, step, direction=LTR):
         """
         Apply the kerning difference to the given layer pair.
         """
@@ -109,10 +109,10 @@ else:
         # Glyphs 3 returns "no kerning" as None
         if value is None or value > 0xFFFF:
             # Kern pair didn't exist, set the kerning to the delta value
-            value = delta
+            value = int(round(delta / step) * step)
         else:
             # Kern pair existed before, add the delta value
-            value += delta
+            value = int(round((value + delta) / step) * step)
 
         if direction == LTR:
             layer2.setPreviousKerning_forLayer_direction_(
@@ -465,30 +465,37 @@ class DragToKern(SelectTool):
         else:
             mouseZoom = 1
 
+        # Shift key rounds to 10
+        if wc.ShiftKey():
+            step = 10
+        else:
+            step = 1
+
         delta = (loc.x - self.drag_start.x) / evc.scale * mouseZoom
 
         self.drag_start = loc
         if delta != 0.0:
-            delta = int(round(delta))
             # Only "move" can be applied for linked metrics
             if self.mode == "move":
-                self.layer2.LSB += delta
-                self.layer2.width -= delta
+                self.layer2.LSB += int(round(delta))
+                self.layer2.width -= int(round(delta))
                 return True
 
             if self.metricsAreLocked(self.layer2):
                 return False
 
             if self.mode == "kern":
-                applyKerning(self.layer1, self.layer2, delta, self.direction)
+                applyKerning(
+                    self.layer1, self.layer2, delta, step, self.direction
+                )
                 return False  # Kerning changes already trigger a redraw
 
             if self.mode == "LSB":
-                self.layer2.LSB += delta
+                self.layer2.LSB += int(round(delta))
                 return True
 
             if self.mode == "RSB":
-                self.layer2.RSB += delta
+                self.layer2.RSB += int(round(delta))
                 return True
 
         return False
