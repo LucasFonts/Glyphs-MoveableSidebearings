@@ -687,9 +687,9 @@ class DragToKern(SelectTool):
         metric_name, value, layer, desc, asc = metric
         if locked:
             shown_value = "🔒︎"
-        elif metric_name == "LSB" and self.drag_start is not None:
+        elif metric_name == "LSB":
             shown_value = "∆%g = %g" % (self.orig_value - value, value)
-        elif metric_name == "RSB" and self.drag_start is not None:
+        elif metric_name == "RSB":
             shown_value = "∆%g = %g" % (self.orig_value + value, value)
         else:
             shown_value = "%g" % value
