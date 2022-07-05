@@ -35,7 +35,8 @@ COLOR_ALPHA = 0.5
 DRAGGING_HANDLE_HEIGHT = 30
 DRAGGING_HANDLE_WIDTH = 1
 LABEL_TEXT_SIZE = 11
-LABEL_DIST = 16
+LABEL_DIST = 6
+LABEL_VERT_INNER_BIAS = 0.3
 
 
 if Glyphs.versionNumber < 3.0:
@@ -196,9 +197,7 @@ class DragToKern(SelectTool):
         self.colorSBInner = NSColor.colorWithCalibratedRed_green_blue_alpha_(
             COLOR_R, COLOR_G, COLOR_B, 0.0
         )
-        self.colorLabel = NSColor.colorWithCalibratedRed_green_blue_alpha_(
-            COLOR_R, COLOR_G, COLOR_B, COLOR_ALPHA
-        )
+        self.colorLabel = NSColor.blackColor()
         self.colorBox = NSColor.colorWithCalibratedRed_green_blue_alpha_(
             1.0, 1.0, 1.0, 0.96
         )
@@ -503,17 +502,17 @@ class DragToKern(SelectTool):
             # Not in spacing mode
             return
 
-        result = self.checkHandles(gv, layer, layerOrigin)
-        if result is not None:
-            metric, handle_x, width = result
-            if self.drag_start is None:
+        if self.drag_start is None:
+            result = self.checkHandles(gv, layer, layerOrigin)
+            if result is not None:
+                metric, handle_x, width = result
                 self._drawHandle(handle_x, metric)
                 if self.drawMeasurements:
-                    self._drawTextLabel(
-                        handle_x, width, metric, self.metricsAreLocked(layer)
+                    self._drawDraggingMeasurements(
+                        metric[0], gv, layer, layerOrigin
                     )
-            else:
-                self._drawDraggingMeasurements(gv, layer, layerOrigin)
+        elif self.drawMeasurements:
+            self._drawDraggingMeasurements(self.mode, gv, layer, layerOrigin)
 
     def drawMetricsForLayer_atPoint_asActive_(
         self, layer, layerOrigin, active
@@ -617,63 +616,120 @@ class DragToKern(SelectTool):
         angle = -180 if metric_name == "RSB" else 0
         bezierPath = NSBezierPath.bezierPathWithRect_(rect)
         gradient.drawInBezierPath_angle_(bezierPath, angle)
-    
+
     @objc.python_method
-    def _drawDraggingMeasurements(self, graphicView, layer, layerOrigin):
+    def _drawDraggingMeasurements(
+        self, metric, graphicView, layer, layerOrigin
+    ):
         if layer != self.layer2 or self.layer2 is None:
             # Only draw labels at the layer being modified
             return
-        
+
         try:
             master = self.layer2.master
         except KeyError:
             return
-        
+
         scale = graphicView.scale()
-        desc = self.layer2.master.descender * scale
-        asc = self.layer2.master.ascender * scale
+        desc = master.descender * scale
+        asc = master.ascender * scale
         asc += layerOrigin.y
         desc += layerOrigin.y
         layerWidth = layer.width * scale
+        locked = self.metricsAreLocked(self.layer2)
 
-        if self.mode == "LSB":
+        if metric == "LSB":
             # Draw left
-            x = [layerOrigin.x - DRAGGING_HANDLE_WIDTH * 0.5]
-        elif self.mode == "RSB":
+            x = layerOrigin.x - DRAGGING_HANDLE_WIDTH * 0.5
+            self._drawDraggingTextLabel(metric, x, asc, locked)
+            pos = [x]
+        elif metric == "RSB":
             # Draw right
-            x = [layerOrigin.x + layerWidth - DRAGGING_HANDLE_WIDTH * 0.5]
-        elif self.mode == "move":
+            x = layerOrigin.x + layerWidth - DRAGGING_HANDLE_WIDTH * 0.5
+            self._drawDraggingTextLabel(metric, x, asc, locked)
+            pos = [x]
+        elif metric == "move":
             # Draw left and right
-            x = [
-                layerOrigin.x - DRAGGING_HANDLE_WIDTH * 0.5,
-                layerOrigin.x + layerWidth - DRAGGING_HANDLE_WIDTH * 0.5
-            ]
-        elif self.mode == "kern":
+            x1 = layerOrigin.x - DRAGGING_HANDLE_WIDTH * 0.5
+            x2 = layerOrigin.x + layerWidth - DRAGGING_HANDLE_WIDTH * 0.5
+            self._drawDraggingTextLabel("LSB", x1, asc, locked)
+            self._drawDraggingTextLabel("RSB", x2, asc, locked)
+            pos = [x1, x2]
+        elif metric == "kern":
             # Draw left
-            x = [layerOrigin.x - DRAGGING_HANDLE_WIDTH * 0.5]
+            x = layerOrigin.x - DRAGGING_HANDLE_WIDTH * 0.5
+            self._drawDraggingTextLabel("LSB", x, asc, locked)
+            pos = [x]
         else:
             return
 
-        self._drawDraggingTextLabel(x, asc, desc)
+        self._drawDraggingMeasurement(pos, asc, desc)
 
     @objc.python_method
-    def _drawDraggingTextLabel(self, xPositions, asc, desc):
+    def _drawDraggingMeasurement(self, xPositions, asc, desc):
+        top = DRAGGING_HANDLE_HEIGHT * LABEL_VERT_INNER_BIAS
+        bot = DRAGGING_HANDLE_HEIGHT - top
         for x in xPositions:
             bezierPath = NSBezierPath.bezierPathWithRect_(
                 NSRect(
-                    origin=(x, desc - DRAGGING_HANDLE_HEIGHT),
+                    origin=(x, desc - bot),
                     size=(DRAGGING_HANDLE_WIDTH, DRAGGING_HANDLE_HEIGHT),
                 )
             )
-            # bezierPath = NSBezierPath.bezierPathWithRect_(rect)
             bezierPath.appendBezierPathWithRect_(
                 NSRect(
-                    origin=(x, asc),
+                    origin=(x, asc - top),
                     size=(DRAGGING_HANDLE_WIDTH, DRAGGING_HANDLE_HEIGHT),
                 )
             )
             self.colorSBOuter.set()
             bezierPath.fill()
+
+    @objc.python_method
+    def _drawDraggingTextLabel(self, metric, xPosition, asc, locked):
+        if locked:
+            shown_value = "🔒︎"
+        else:
+            if metric == "LSB":
+                shown_value = "%g" % self.layer2.LSB
+            elif metric == "RSB":
+                shown_value = "%g" % self.layer2.RSB
+            else:
+                return
+
+        attrs = {
+            NSFontAttributeName: NSFont.monospacedDigitSystemFontOfSize_weight_(
+                LABEL_TEXT_SIZE, NSFontWeightRegular
+            ),
+            NSForegroundColorAttributeName: self.colorLabel,
+        }
+        myString = NSString.string().stringByAppendingString_(shown_value)
+        bbox = myString.sizeWithAttributes_(attrs)
+        bw = bbox.width
+        bh = bbox.height
+        text_pt = NSPoint()
+        text_pt.y = (
+            asc
+            + DRAGGING_HANDLE_HEIGHT
+            - DRAGGING_HANDLE_HEIGHT * LABEL_VERT_INNER_BIAS
+            - bh
+        )
+        if metric == "LSB":
+            text_pt.x = xPosition + LABEL_DIST
+        elif metric == "RSB":
+            text_pt.x = xPosition - LABEL_DIST - bw
+        else:
+            return
+
+        rect = NSRect(origin=(text_pt.x, text_pt.y), size=(bw, bh))
+        outer = NSRect(
+            origin=(text_pt.x - 2, text_pt.y - 1), size=(bw + 4, bh + 2)
+        )
+        self.colorBox.set()
+        NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
+            outer, 4, 4
+        ).fill()
+        myString.drawInRect_withAttributes_(rect, attrs)
 
     @objc.python_method
     def _drawTextLabel(self, handle_x, width, metric, locked=False):
