@@ -244,7 +244,7 @@ class DragToKern(SelectTool):
                 {
                     "name": Glyphs.localize(
                         {
-                            "en": "Hide Measurements While Kerning/Spacing",
+                            "en": "Hide Measurements While Spacing",
                         }
                     ),
                     "action": self.toggleMeasurements_,
@@ -254,7 +254,7 @@ class DragToKern(SelectTool):
             {
                 "name": Glyphs.localize(
                     {
-                        "en": "Show Measurements While Kerning/Spacing",
+                        "en": "Show Measurements While Spacing",
                     }
                 ),
                 "action": self.toggleMeasurements_,
@@ -363,6 +363,7 @@ class DragToKern(SelectTool):
 
         if self.layer2 is not None:
             self.layer2.parent.beginUndo()
+        Glyphs.redraw()
 
     @objc.python_method
     def setupKerning(self, composedLayers, layerIndex):
@@ -429,6 +430,7 @@ class DragToKern(SelectTool):
         self.cancel_operation()
         self.setStdCursor()
         self.active_metric = None
+        Glyphs.redraw()
 
     @objc.python_method
     def metricsAreLocked(self, layer):
@@ -507,10 +509,6 @@ class DragToKern(SelectTool):
             if result is not None:
                 metric, handle_x, width = result
                 self._drawHandle(handle_x, metric)
-                if self.drawMeasurements:
-                    self._drawDraggingMeasurements(
-                        metric[0], gv, layer, layerOrigin
-                    )
         elif self.drawMeasurements:
             self._drawDraggingMeasurements(self.mode, gv, layer, layerOrigin)
 
@@ -638,17 +636,7 @@ class DragToKern(SelectTool):
         layerWidth = layer.width * scale
         locked = self.metricsAreLocked(self.layer2)
 
-        if metric == "LSB":
-            # Draw left
-            x = layerOrigin.x - DRAGGING_HANDLE_WIDTH * 0.5
-            self._drawDraggingTextLabel(metric, x, asc, locked)
-            pos = [x]
-        elif metric == "RSB":
-            # Draw right
-            x = layerOrigin.x + layerWidth - DRAGGING_HANDLE_WIDTH * 0.5
-            self._drawDraggingTextLabel(metric, x, asc, locked)
-            pos = [x]
-        elif metric == "move":
+        if metric in ("LSB", "RSB", "move"):
             # Draw left and right
             x1 = layerOrigin.x - DRAGGING_HANDLE_WIDTH * 0.5
             x2 = layerOrigin.x + layerWidth - DRAGGING_HANDLE_WIDTH * 0.5
@@ -656,6 +644,7 @@ class DragToKern(SelectTool):
             self._drawDraggingTextLabel("RSB", x2, asc, locked)
             pos = [x1, x2]
         elif metric == "kern":
+            # FIXME: This code is never called
             # Draw left
             x = layerOrigin.x - DRAGGING_HANDLE_WIDTH * 0.5
             self._drawDraggingTextLabel("LSB", x, asc, locked)
