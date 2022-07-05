@@ -20,9 +20,9 @@ from AppKit import (
 from GlyphsApp import Glyphs, MOUSEMOVED
 
 try:
-    from GlyphsApp import GSLTR as LTR, GSRTL as RTL
+    from GlyphsApp import GSLTR as LTR
 except:
-    from GlyphsApp import LTR, RTL
+    from GlyphsApp import LTR
 from GlyphsApp.plugins import SelectTool
 
 GlyphsToolSelect = NSClassFromString("GlyphsToolSelect")
