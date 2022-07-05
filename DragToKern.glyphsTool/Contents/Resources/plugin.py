@@ -45,7 +45,7 @@ if Glyphs.versionNumber < 3.0:
         value = layer2.leftKerningForLayer_(layer1)
 
         # Glyphs 2 returns "no kerning" as maxint
-        if value > 0xFFFF:
+        if value is None or value > 0xFFFF:
             # Kern pair didn't exist, set the kerning to the delta value
             value = delta
         else:
@@ -104,7 +104,7 @@ else:
         value = layer2.previousKerningForLayer_direction_(layer1, direction)
 
         # Glyphs 3 returns "no kerning" as None
-        if value is None:
+        if value is None or value > 0xFFFF:
             # Kern pair didn't exist, set the kerning to the delta value
             value = delta
         else:
