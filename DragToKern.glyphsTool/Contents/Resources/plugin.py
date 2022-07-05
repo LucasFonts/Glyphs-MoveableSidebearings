@@ -410,11 +410,14 @@ class DragToKern(SelectTool):
         gv = evc.graphicView()
         loc = gv.convertPoint_fromView_(theEvent.locationInWindow(), None)
         wc = self.windowController()
+
         if wc.AltKey():
             mouseZoom = 0.1
         else:
             mouseZoom = 1
+
         delta = (loc.x - self.drag_start.x) / evc.scale * mouseZoom
+
         self.drag_start = loc
         if delta != 0.0:
             delta = int(round(delta))
@@ -428,9 +431,7 @@ class DragToKern(SelectTool):
                 return False
 
             if self.mode == "kern":
-                applyKerning(
-                    self.layer1, self.layer2, delta, self.direction
-                )
+                applyKerning(self.layer1, self.layer2, delta, self.direction)
                 return False  # Kerning changes already trigger a redraw
 
             if self.mode == "LSB":
@@ -501,7 +502,7 @@ class DragToKern(SelectTool):
             master = layer.master
         except KeyError:
             return
-        
+
         x, y = location
         scale = graphicView.scale()
         desc = master.descender * scale
