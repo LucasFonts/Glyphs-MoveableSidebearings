@@ -224,6 +224,14 @@ class DragToKern(SelectTool):
     def deactivate(self):
         Glyphs.removeCallback(self.mouseDidMove, MOUSEMOVED)
 
+    @objc.python_method
+    def doKerning(self, graphicView):
+        return graphicView.doKerning()
+
+    @objc.python_method
+    def doSpacing(self, graphicView):
+        return not graphicView.doKerning() and graphicView.doSpacing()
+
     def keyDown_(self, theEvent):
         c = theEvent.characters()
         if c in ("a", "s", "d", "A", "S", "D"):
@@ -280,26 +288,9 @@ class DragToKern(SelectTool):
 
         # What should be modified? Kerning, LSB, RSB, or both SBs?
 
-        if gv.doKerning() and gv.doSpacing():
-            # Kerning between two glyphs will be modified
-            if layerIndex == 0:
-                # First layer (0) can't be kerned
-                self.setLockedCursor()
-                self.cancel_operation()
-                return
-
-            # Find out which layers should be kerned
-            self.layer1 = composedLayers[layerIndex - 1]
-            self.layer2 = composedLayers[layerIndex]
-            if self.layer2.master != self.layer1.master:
-                # Can't add kerning between different masters
-                self.setLockedCursor()
-                self.cancel_operation()
-                return
-
-            self.mode = "kern"
-
-        elif gv.doSpacing():
+        spacing = self.doSpacing(gv)
+        kerning = self.doKerning(gv)
+        if spacing:
             # Check if the click was at a sidebearing handle
             result = self.checkHandleLocation(loc, gv, layer, layerOrigin)
 
@@ -315,6 +306,9 @@ class DragToKern(SelectTool):
                 self.mode = "LSB"
             elif self.active_metric == "RSB":
                 self.mode = "RSB"
+            elif kerning:
+                if not self.setupKerning(composedLayers, layerIndex):
+                    return
             else:
                 self.setLockedCursor()
                 self.cancel_operation()
@@ -322,8 +316,33 @@ class DragToKern(SelectTool):
 
             self.layer2 = composedLayers[layerIndex]
 
+        elif kerning:
+            if not self.setupKerning(composedLayers, layerIndex):
+                return
+
         if self.layer2 is not None:
             self.layer2.parent.beginUndo()
+
+    @objc.python_method
+    def setupKerning(self, composedLayers, layerIndex):
+        # Kerning between two glyphs will be modified
+        if layerIndex == 0:
+            # First layer (0) can't be kerned
+            self.setLockedCursor()
+            self.cancel_operation()
+            return False
+
+        # Find out which layers should be kerned
+        self.layer1 = composedLayers[layerIndex - 1]
+        self.layer2 = composedLayers[layerIndex]
+        if self.layer2.master != self.layer1.master:
+            # Can't add kerning between different masters
+            self.setLockedCursor()
+            self.cancel_operation()
+            return False
+
+        self.mode = "kern"
+        return True
 
     def cancelOperation_(self, sender):
         wc = self.windowController()
@@ -411,6 +430,7 @@ class DragToKern(SelectTool):
         loc = gv.convertPoint_fromView_(theEvent.locationInWindow(), None)
         wc = self.windowController()
 
+        # Alt key enables "precision dragging"
         if wc.AltKey():
             mouseZoom = 0.1
         else:
@@ -451,8 +471,8 @@ class DragToKern(SelectTool):
         gv.drawLayer_atPoint_asActive_attributes_(
             layer, layerOrigin, active, attributes
         )
-        if gv.doKerning() or not gv.doSpacing():
-            # Edit view has locked spacing or is in kerning mode
+        if not self.doSpacing(gv):
+            # Not in spacing mode
             return
 
         if self.metricsAreLocked(layer):
@@ -495,7 +515,7 @@ class DragToKern(SelectTool):
         Check if the location of an event is at a possible metrics handle
         location.
         """
-        if not graphicView.doSpacing():
+        if not self.doSpacing(graphicView):
             return
 
         try:
