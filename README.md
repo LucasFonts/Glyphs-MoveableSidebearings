@@ -55,16 +55,17 @@ drag while the indicators are shown to modify the sidebearings.
 
 ![](media/DragToKern-Spacing.gif)
 
-Click and drag while the **Command** key is pressed to move the glyph’s outline
-inside its current width.
+- Click and drag while the **Command** key is pressed to move the glyph’s
+  outline inside its current width.
+- Hold **Option** to enable _precision mode_ which increases the mouse
+  sensitivity 10-fold.
 
-If the current master’s metrics are linked to another master, dragging the
-sidebearing handles does nothing. A small lock is shown when trying to drag.
-You can still move the outline inside its current width by holding the
-**Command** key.
+- If the current master’s metrics are linked to another master, a lock icon is
+  shown when trying to drag. You can still move the outline inside its current
+  width by holding the **Command** key.
 
-You can hide or show the measurements shown while dragging via the contextual
-menu _(Hide Measurements While Spacing/Show Measurements While Spacing)._
+- Hide or show the measurements while dragging via the contextual menu
+  _(Hide Measurements While Spacing/Show Measurements While Spacing)._
 
 ## Known issues
 
