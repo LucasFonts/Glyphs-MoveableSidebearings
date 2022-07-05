@@ -27,13 +27,15 @@ from GlyphsApp.plugins import SelectTool
 
 GlyphsToolSelect = NSClassFromString("GlyphsToolSelect")
 
-DRAW_LABELS = False
-LIVE_UPDATE = True
 SNAP_TOLERANCE = 14
 COLOR_R = 0.9
 COLOR_G = 0.1
 COLOR_B = 0.0
 COLOR_ALPHA = 0.5
+DRAGGING_HANDLE_HEIGHT = 30
+DRAGGING_HANDLE_WIDTH = 1
+LABEL_TEXT_SIZE = 11
+LABEL_DIST = 16
 
 
 if Glyphs.versionNumber < 3.0:
@@ -211,18 +213,57 @@ class DragToKern(SelectTool):
         self.drag_start = None
         self.direction = LTR
         self.active_metric = None
+        self.orig_value = None
         self.handle_x = None
         self.width = None
         self.layer1 = None
         self.layer2 = None
+        self.drawMeasurements = Glyphs.defaults[
+            "com.lucasfonts.DragToKern.measurements"
+        ]
+        if self.drawMeasurements is None:
+            self.drawMeasurements = False
 
     @objc.python_method
     def activate(self):
         Glyphs.addCallback(self.mouseDidMove, MOUSEMOVED)
+        self.drawMeasurements = Glyphs.defaults[
+            "com.lucasfonts.DragToKern.measurements"
+        ]
 
     @objc.python_method
     def deactivate(self):
         Glyphs.removeCallback(self.mouseDidMove, MOUSEMOVED)
+        Glyphs.defaults[
+            "com.lucasfonts.DragToKern.measurements"
+        ] = self.drawMeasurements
+
+    @objc.python_method
+    def conditionalContextMenus(self):
+        if self.drawMeasurements:
+            return [
+                {
+                    "name": Glyphs.localize(
+                        {
+                            "en": "Hide Measurements While Kerning/Spacing",
+                        }
+                    ),
+                    "action": self.toggleMeasurements_,
+                }
+            ]
+        return [
+            {
+                "name": Glyphs.localize(
+                    {
+                        "en": "Show Measurements While Kerning/Spacing",
+                    }
+                ),
+                "action": self.toggleMeasurements_,
+            }
+        ]
+
+    def toggleMeasurements_(self, sender=None):
+        self.drawMeasurements = not self.drawMeasurements
 
     @objc.python_method
     def doKerning(self, graphicView):
@@ -283,7 +324,7 @@ class DragToKern(SelectTool):
 
         # Collect some info about the clicked layer
         composedLayers = evc.composedLayers
-        layer = composedLayers[layerIndex]
+        self.layer2 = composedLayers[layerIndex]
         layerOrigin = gv.cachedPositionAtIndex_(layerIndex)
 
         # What should be modified? Kerning, LSB, RSB, or both SBs?
@@ -292,20 +333,23 @@ class DragToKern(SelectTool):
         kerning = self.doKerning(gv)
         if spacing:
             # Check if the click was at a sidebearing handle
-            result = self.checkHandleLocation(loc, gv, layer, layerOrigin)
+            result = self.checkHandleLocation(
+                loc, gv, self.layer2, layerOrigin
+            )
 
             if result is None:
                 self.active_metric = None
             else:
                 self.active_metric = result[0][0]
 
-            wc = self.windowController()
-            if wc.CommandKey():
+            if self.windowController().CommandKey():
                 self.mode = "move"
             elif self.active_metric == "LSB":
                 self.mode = "LSB"
+                self.orig_value = self.layer2.LSB
             elif self.active_metric == "RSB":
                 self.mode = "RSB"
+                self.orig_value = self.layer2.RSB
             elif kerning:
                 if not self.setupKerning(composedLayers, layerIndex):
                     return
@@ -313,8 +357,6 @@ class DragToKern(SelectTool):
                 self.setLockedCursor()
                 self.cancel_operation()
                 return
-
-            self.layer2 = composedLayers[layerIndex]
 
         elif kerning:
             if not self.setupKerning(composedLayers, layerIndex):
@@ -334,7 +376,7 @@ class DragToKern(SelectTool):
 
         # Find out which layers should be kerned
         self.layer1 = composedLayers[layerIndex - 1]
-        self.layer2 = composedLayers[layerIndex]
+        # self.layer2 = composedLayers[layerIndex]
         if self.layer2.master != self.layer1.master:
             # Can't add kerning between different masters
             self.setLockedCursor()
@@ -353,6 +395,7 @@ class DragToKern(SelectTool):
         self.layer1 = None
         self.layer2 = None
         self.drag_start = None
+        self.orig_value = None
 
     @objc.python_method
     def setLockedCursor(self):
@@ -368,9 +411,6 @@ class DragToKern(SelectTool):
         """
         Update the kerning when the mouse is dragged and live update is on.
         """
-        if not LIVE_UPDATE:
-            return
-
         if self.drag_start is None:
             return
 
@@ -380,28 +420,16 @@ class DragToKern(SelectTool):
 
     def mouseUp_(self, theEvent):
         """
-        If live update is off, we must update the kerning on mouse up.
+        End the undo and reset variables when the mouse is released
         """
-        needsRedraw = False
-        if not LIVE_UPDATE:
-            if self.drag_start is None:
-                self.cancel_operation()
-                self.setStdCursor()
-                return
-
-            needsRedraw = self.handleDrag(theEvent)
-
         if self.layer2 is not None:
             self.layer2.parent.endUndo()
-            if needsRedraw:
-                self.editViewController().forceRedraw()
 
         self.direction = LTR
         self.mode = None
         self.cancel_operation()
         self.setStdCursor()
         self.active_metric = None
-        # self.setStdCursor()
 
     @objc.python_method
     def metricsAreLocked(self, layer):
@@ -475,17 +503,17 @@ class DragToKern(SelectTool):
             # Not in spacing mode
             return
 
-        if self.metricsAreLocked(layer):
-            # Layer gets metrics from some other layer
-            return
-
         result = self.checkHandles(gv, layer, layerOrigin)
         if result is not None:
             metric, handle_x, width = result
             if self.drag_start is None:
                 self._drawHandle(handle_x, metric)
-            if DRAW_LABELS:
-                self._drawTextLabel(handle_x, width, metric)
+                if self.drawMeasurements:
+                    self._drawTextLabel(
+                        handle_x, width, metric, self.metricsAreLocked(layer)
+                    )
+            else:
+                self._drawDraggingMeasurements(gv, layer, layerOrigin)
 
     def drawMetricsForLayer_atPoint_asActive_(
         self, layer, layerOrigin, active
@@ -589,6 +617,63 @@ class DragToKern(SelectTool):
         angle = -180 if metric_name == "RSB" else 0
         bezierPath = NSBezierPath.bezierPathWithRect_(rect)
         gradient.drawInBezierPath_angle_(bezierPath, angle)
+    
+    @objc.python_method
+    def _drawDraggingMeasurements(self, graphicView, layer, layerOrigin):
+        if layer != self.layer2 or self.layer2 is None:
+            # Only draw labels at the layer being modified
+            return
+        
+        try:
+            master = self.layer2.master
+        except KeyError:
+            return
+        
+        scale = graphicView.scale()
+        desc = self.layer2.master.descender * scale
+        asc = self.layer2.master.ascender * scale
+        asc += layerOrigin.y
+        desc += layerOrigin.y
+        layerWidth = layer.width * scale
+
+        if self.mode == "LSB":
+            # Draw left
+            x = [layerOrigin.x - DRAGGING_HANDLE_WIDTH * 0.5]
+        elif self.mode == "RSB":
+            # Draw right
+            x = [layerOrigin.x + layerWidth - DRAGGING_HANDLE_WIDTH * 0.5]
+        elif self.mode == "move":
+            # Draw left and right
+            x = [
+                layerOrigin.x - DRAGGING_HANDLE_WIDTH * 0.5,
+                layerOrigin.x + layerWidth - DRAGGING_HANDLE_WIDTH * 0.5
+            ]
+        elif self.mode == "kern":
+            # Draw left
+            x = [layerOrigin.x - DRAGGING_HANDLE_WIDTH * 0.5]
+        else:
+            return
+
+        self._drawDraggingTextLabel(x, asc, desc)
+
+    @objc.python_method
+    def _drawDraggingTextLabel(self, xPositions, asc, desc):
+        for x in xPositions:
+            bezierPath = NSBezierPath.bezierPathWithRect_(
+                NSRect(
+                    origin=(x, desc - DRAGGING_HANDLE_HEIGHT),
+                    size=(DRAGGING_HANDLE_WIDTH, DRAGGING_HANDLE_HEIGHT),
+                )
+            )
+            # bezierPath = NSBezierPath.bezierPathWithRect_(rect)
+            bezierPath.appendBezierPathWithRect_(
+                NSRect(
+                    origin=(x, asc),
+                    size=(DRAGGING_HANDLE_WIDTH, DRAGGING_HANDLE_HEIGHT),
+                )
+            )
+            self.colorSBOuter.set()
+            bezierPath.fill()
 
     @objc.python_method
     def _drawTextLabel(self, handle_x, width, metric, locked=False):
@@ -599,21 +684,19 @@ class DragToKern(SelectTool):
         if metric is None:
             return
 
-        text_size = 11
-        text_dist = 16
         metric_name, value, layer, desc, asc = metric
         if locked:
             shown_value = "🔒︎"
         elif metric_name == "LSB" and self.drag_start is not None:
-            shown_value = "∆%g = %g" % (value, layer.LSB - value)
+            shown_value = "∆%g = %g" % (self.orig_value - value, value)
         elif metric_name == "RSB" and self.drag_start is not None:
-            shown_value = "∆%g = %g" % (value, layer.RSB + value)
+            shown_value = "∆%g = %g" % (self.orig_value + value, value)
         else:
             shown_value = "%g" % value
 
         attrs = {
             NSFontAttributeName: NSFont.monospacedDigitSystemFontOfSize_weight_(
-                text_size, NSFontWeightRegular
+                LABEL_TEXT_SIZE, NSFontWeightRegular
             ),
             NSForegroundColorAttributeName: self.colorLabel,
         }
@@ -626,16 +709,16 @@ class DragToKern(SelectTool):
         text_pt.y = self.mouse_position[1]
         if metric_name == "LSB":
             if self.drag_start is not None:
-                text_pt.x = handle_x[0] + text_dist
+                text_pt.x = handle_x[0] + LABEL_DIST
             else:
-                text_pt.x = width + text_dist
+                text_pt.x = width + LABEL_DIST
         elif metric_name == "RSB":
             if self.drag_start is not None:
-                text_pt.x = handle_x[0] - text_dist - bw
+                text_pt.x = handle_x[0] - LABEL_DIST - bw
             else:
-                text_pt.x = width - text_dist - bw
+                text_pt.x = width - LABEL_DIST - bw
         else:
-            text_pt.x = self.mouse_position[0] - text_dist - bw
+            text_pt.x = self.mouse_position[0] - LABEL_DIST - bw
 
         rr = NSRect(origin=(text_pt.x, text_pt.y), size=(bw, bh))
         outer = NSRect(
