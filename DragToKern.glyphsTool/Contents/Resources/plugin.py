@@ -197,10 +197,8 @@ class DragToKern(SelectTool):
         self.colorSBInner = NSColor.colorWithCalibratedRed_green_blue_alpha_(
             COLOR_R, COLOR_G, COLOR_B, 0.0
         )
-        self.colorLabel = NSColor.blackColor()
-        self.colorBox = NSColor.colorWithCalibratedRed_green_blue_alpha_(
-            1.0, 1.0, 1.0, 0.96
-        )
+        self.colorLabel = NSColor.textColor()
+        self.colorBox = NSColor.textBackgroundColor()
 
     def standardCursor(self):
         return self.cursor
