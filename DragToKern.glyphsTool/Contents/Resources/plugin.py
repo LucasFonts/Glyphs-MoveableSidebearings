@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 import objc
+from objc import super
+
 from AppKit import (
     NSBezierPath,
     NSClassFromString,
@@ -196,7 +198,7 @@ class DragToKern(SelectTool):
             return
 
         # Other keys are handled by the super class
-        super(DragToKern, self).keyDown_(theEvent)
+        super().keyDown_(theEvent)
 
     @objc.python_method
     def mouseDidMove(self, notification) -> None:
