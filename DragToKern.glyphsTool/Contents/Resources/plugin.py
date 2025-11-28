@@ -3,8 +3,6 @@ from __future__ import annotations
 from typing import Any
 
 import objc
-from objc import super
-
 from AppKit import (
     NSBezierPath,
     NSClassFromString,
@@ -21,6 +19,7 @@ from AppKit import (
 )
 from GlyphsApp import GSLTR, MOUSEMOVED, Glyphs
 from GlyphsApp.plugins import SelectTool
+from objc import super
 
 GlyphsToolSelect = NSClassFromString("GlyphsToolSelect")
 
