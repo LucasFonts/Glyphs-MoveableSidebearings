@@ -1,8 +1,8 @@
-# encoding: utf-8
-from __future__ import division, print_function, unicode_literals
+from __future__ import annotations
+
+from typing import Any
 
 import objc
-
 from AppKit import (
     NSBezierPath,
     NSClassFromString,
@@ -17,12 +17,7 @@ from AppKit import (
     NSRect,
     NSString,
 )
-from GlyphsApp import Glyphs, MOUSEMOVED
-
-try:
-    from GlyphsApp import GSLTR as LTR
-except:
-    from GlyphsApp import LTR
+from GlyphsApp import GSLTR, MOUSEMOVED, Glyphs
 from GlyphsApp.plugins import SelectTool
 
 GlyphsToolSelect = NSClassFromString("GlyphsToolSelect")
@@ -39,148 +34,65 @@ LABEL_DIST = 6
 LABEL_VERT_INNER_BIAS = 0.3
 
 
-if Glyphs.versionNumber < 3.0:
+def applyKerning(layer1, layer2, delta, step, direction=GSLTR) -> None:
+    """
+    Apply the kerning difference to the given layer pair.
+    """
+    value = layer2.previousKerningForLayer_direction_(layer1, direction)
 
-    def applyKerning(layer1, layer2, delta, step=1, direction=LTR):
-        """
-        Apply the kerning difference to the given layer pair.
-        """
-        value = layer2.leftKerningForLayer_(layer1)
+    # Glyphs 3 returns "no kerning" as None
+    if value is None or value > 0xFFFF:
+        # Kern pair didn't exist, set the kerning to the delta value
+        value = int(round(delta / step) * step)
+    else:
+        # Kern pair existed before, add the delta value
+        value = int(round((value + delta) / step) * step)
 
-        # Glyphs 2 returns "no kerning" as maxint
-        if value is None or value > 0xFFFF:
-            # Kern pair didn't exist, set the kerning to the delta value
-            value = int(round(delta / step) * step)
-        else:
-            # Kern pair existed before, add the delta value
-            value = int(round((value + delta) / step) * step)
+    if direction == GSLTR:
+        layer2.setPreviousKerning_forLayer_direction_(value, layer1, direction)
+    else:
+        layer2.setPreviousKerning_forLayer_direction_(value, layer1, direction)
 
-        if direction == LTR:
-            layer2.setLeftKerning_forLayer_(value, layer1)
-        else:
-            layer2.setLeftKerning_forLayer_(value, layer1)
 
-    def handleException(composedLayers, layerIndex, c, direction=LTR):
-        """
-        Add or remove an exception at the current location
-        """
-        if layerIndex == 0 or layerIndex > 0xFFFF:
-            return
+def handleException(composedLayers, layerIndex, c, direction=GSLTR) -> None:
+    """
+    Add or remove an exception at the current location
+    """
+    if layerIndex == 0 or layerIndex > 0xFFFF:
+        return
 
-        # Find out which layers should be get the exception
-        layer1 = composedLayers[layerIndex - 1]
-        layer2 = composedLayers[layerIndex]
-        if layer2.master != layer1.master:
-            # Can't add kerning between different masters
-            return False
+    # Find out which layers should be get the exception
+    layer1 = composedLayers[layerIndex - 1]
+    layer2 = composedLayers[layerIndex]
+    if layer2.master != layer1.master:
+        # Can't add kerning between different masters
+        return
 
-        if c == "d":
-            # Both layers should get the exception
-            layer1.setRightKerningExeption_forLayer_(True, layer2)
-            layer2.setLeftKerningExeption_forLayer_(True, layer1)
-        elif c == "a":
-            # First layer should get exception
-            layer1.setRightKerningExeption_forLayer_(True, layer2)
-        elif c == "s":
-            # First layer should get exception
-            layer2.setLeftKerningExeption_forLayer_(True, layer1)
-        elif c == "D":
-            # Remove kerning exception for both layers
-            layer1.setRightKerningExeption_forLayer_(False, layer2)
-            layer2.setLeftKerningExeption_forLayer_(False, layer1)
-        elif c == "A":
-            # Remove kerning exception for first layer
-            layer1.setRightKerningExeption_forLayer_(False, layer2)
-        elif c == "S":
-            # Remove kerning exception for second layer
-            layer2.setLeftKerningExeption_forLayer_(False, layer1)
-        else:
-            return False
-        return True
-
-else:
-
-    def applyKerning(layer1, layer2, delta, step, direction=LTR):
-        """
-        Apply the kerning difference to the given layer pair.
-        """
-        value = layer2.previousKerningForLayer_direction_(layer1, direction)
-
-        # Glyphs 3 returns "no kerning" as None
-        if value is None or value > 0xFFFF:
-            # Kern pair didn't exist, set the kerning to the delta value
-            value = int(round(delta / step) * step)
-        else:
-            # Kern pair existed before, add the delta value
-            value = int(round((value + delta) / step) * step)
-
-        if direction == LTR:
-            layer2.setPreviousKerning_forLayer_direction_(
-                value, layer1, direction
-            )
-        else:
-            layer2.setPreviousKerning_forLayer_direction_(
-                value, layer1, direction
-            )
-
-    def handleException(composedLayers, layerIndex, c, direction=LTR):
-        """
-        Add or remove an exception at the current location
-        """
-        if layerIndex == 0 or layerIndex > 0xFFFF:
-            return
-
-        # Find out which layers should be get the exception
-        layer1 = composedLayers[layerIndex - 1]
-        layer2 = composedLayers[layerIndex]
-        if layer2.master != layer1.master:
-            # Can't add kerning between different masters
-            return False
-
-        if c == "d":
-            # Both layers should get the exception
-            layer1.setNextKerningExeption_forLayer_direction_(
-                True, layer2, direction
-            )
-            layer2.setPreviousKerningExeption_forLayer_direction_(
-                True, layer1, direction
-            )
-        elif c == "a":
-            # First layer should get exception
-            layer1.setNextKerningExeption_forLayer_direction_(
-                True, layer2, direction
-            )
-        elif c == "s":
-            # First layer should get exception
-            layer2.setPreviousKerningExeption_forLayer_direction_(
-                True, layer1, direction
-            )
-        elif c == "D":
-            # Remove kerning exception for both layers
-            layer1.setNextKerningExeption_forLayer_direction_(
-                False, layer2, direction
-            )
-            layer2.setPreviousKerningExeption_forLayer_direction_(
-                False, layer1, direction
-            )
-        elif c == "A":
-            # Remove kerning exception for first layer
-            layer1.setNextKerningExeption_forLayer_direction_(
-                False, layer2, direction
-            )
-        elif c == "S":
-            # Remove kerning exception for second layer
-            layer2.setPreviousKerningExeption_forLayer_direction_(
-                False, layer1, direction
-            )
-        else:
-            return False
-        return True
+    if c == "d":
+        # Both layers should get the exception
+        layer1.setNextKerningExeption_forLayer_direction_(True, layer2, direction)
+        layer2.setPreviousKerningExeption_forLayer_direction_(True, layer1, direction)
+    elif c == "a":
+        # First layer should get exception
+        layer1.setNextKerningExeption_forLayer_direction_(True, layer2, direction)
+    elif c == "s":
+        # First layer should get exception
+        layer2.setPreviousKerningExeption_forLayer_direction_(True, layer1, direction)
+    elif c == "D":
+        # Remove kerning exception for both layers
+        layer1.setNextKerningExeption_forLayer_direction_(False, layer2, direction)
+        layer2.setPreviousKerningExeption_forLayer_direction_(False, layer1, direction)
+    elif c == "A":
+        # Remove kerning exception for first layer
+        layer1.setNextKerningExeption_forLayer_direction_(False, layer2, direction)
+    elif c == "S":
+        # Remove kerning exception for second layer
+        layer2.setPreviousKerningExeption_forLayer_direction_(False, layer1, direction)
 
 
 class DragToKern(SelectTool):
     @objc.python_method
-    def settings(self):
+    def settings(self) -> None:
         self.name = Glyphs.localize(
             {
                 "en": "Mouse Kerning and Spacing",
@@ -204,11 +116,11 @@ class DragToKern(SelectTool):
         return self.cursor
 
     @objc.python_method
-    def start(self):
-        self.mode = None
+    def start(self) -> None:
+        self.mode: str | None = None
         self.mouse_position = (0, 0)
         self.drag_start = None
-        self.direction = LTR
+        self.direction = GSLTR
         self.active_metric = None
         self.orig_value = None
         self.handle_x = None
@@ -222,21 +134,21 @@ class DragToKern(SelectTool):
             self.drawMeasurements = False
 
     @objc.python_method
-    def activate(self):
+    def activate(self) -> None:
         Glyphs.addCallback(self.mouseDidMove, MOUSEMOVED)
         self.drawMeasurements = Glyphs.defaults[
             "com.lucasfonts.DragToKern.measurements"
         ]
 
     @objc.python_method
-    def deactivate(self):
+    def deactivate(self) -> None:
         Glyphs.removeCallback(self.mouseDidMove, MOUSEMOVED)
-        Glyphs.defaults[
-            "com.lucasfonts.DragToKern.measurements"
-        ] = self.drawMeasurements
+        Glyphs.defaults["com.lucasfonts.DragToKern.measurements"] = (
+            self.drawMeasurements
+        )
 
     @objc.python_method
-    def conditionalContextMenus(self):
+    def conditionalContextMenus(self) -> list[dict[str, Any]]:
         if self.drawMeasurements:
             return [
                 {
@@ -259,18 +171,18 @@ class DragToKern(SelectTool):
             }
         ]
 
-    def toggleMeasurements_(self, sender=None):
+    def toggleMeasurements_(self, sender=None) -> None:
         self.drawMeasurements = not self.drawMeasurements
 
     @objc.python_method
-    def doKerning(self, graphicView):
+    def doKerning(self, graphicView) -> bool:
         return graphicView.doKerning()
 
     @objc.python_method
-    def doSpacing(self, graphicView):
+    def doSpacing(self, graphicView) -> bool:
         return not graphicView.doKerning() and graphicView.doSpacing()
 
-    def keyDown_(self, theEvent):
+    def keyDown_(self, theEvent) -> None:
         c = theEvent.characters()
         if c in ("a", "s", "d", "A", "S", "D"):
             # Get the mouse location and convert it to local coordinates
@@ -287,10 +199,10 @@ class DragToKern(SelectTool):
         super(DragToKern, self).keyDown_(theEvent)
 
     @objc.python_method
-    def mouseDidMove(self, notification):
+    def mouseDidMove(self, notification) -> None:
         Glyphs.redraw()
 
-    def mouseDown_(self, theEvent):
+    def mouseDown_(self, theEvent) -> None:
         """
         Get the mouse down location to record the start coordinate and dragged
         layer.
@@ -330,9 +242,7 @@ class DragToKern(SelectTool):
         kerning = self.doKerning(gv)
         if spacing:
             # Check if the click was at a sidebearing handle
-            result = self.checkHandleLocation(
-                loc, gv, self.layer2, layerOrigin
-            )
+            result = self.checkHandleLocation(loc, gv, self.layer2, layerOrigin)
 
             if result is None:
                 self.active_metric = None
@@ -343,9 +253,13 @@ class DragToKern(SelectTool):
                 self.mode = "move"
             elif self.active_metric == "LSB":
                 self.mode = "LSB"
+                if self.layer2 is None:
+                    return
                 self.orig_value = self.layer2.LSB
             elif self.active_metric == "RSB":
                 self.mode = "RSB"
+                if self.layer2 is None:
+                    return
                 self.orig_value = self.layer2.RSB
             elif kerning:
                 if not self.setupKerning(composedLayers, layerIndex):
@@ -364,7 +278,10 @@ class DragToKern(SelectTool):
         Glyphs.redraw()
 
     @objc.python_method
-    def setupKerning(self, composedLayers, layerIndex):
+    def setupKerning(self, composedLayers, layerIndex) -> bool:
+        if self.layer2 is None:
+            return False
+
         # Kerning between two glyphs will be modified
         if layerIndex == 0:
             # First layer (0) can't be kerned
@@ -384,28 +301,28 @@ class DragToKern(SelectTool):
         self.mode = "kern"
         return True
 
-    def cancelOperation_(self, sender):
+    def cancelOperation_(self, sender) -> None:
         wc = self.windowController()
         wc.setToolForClass_(GlyphsToolSelect)
 
     @objc.python_method
-    def cancel_operation(self):
+    def cancel_operation(self) -> None:
         self.layer1 = None
         self.layer2 = None
         self.drag_start = None
         self.orig_value = None
 
     @objc.python_method
-    def setLockedCursor(self):
+    def setLockedCursor(self) -> None:
         # self.editViewController().contentView().enclosingScrollView().setDocumentCursor_(self.lckCursor)
         pass
 
     @objc.python_method
-    def setStdCursor(self):
+    def setStdCursor(self) -> None:
         # self.editViewController().contentView().enclosingScrollView().setDocumentCursor_(self.stdCursor)
         pass
 
-    def mouseDragged_(self, theEvent):
+    def mouseDragged_(self, theEvent) -> None:
         """
         Update the kerning when the mouse is dragged and live update is on.
         """
@@ -416,14 +333,14 @@ class DragToKern(SelectTool):
         if needsRedraw:
             self.editViewController().forceRedraw()
 
-    def mouseUp_(self, theEvent):
+    def mouseUp_(self, theEvent) -> None:
         """
         End the undo and reset variables when the mouse is released
         """
         if self.layer2 is not None:
             self.layer2.parent.endUndo()
 
-        self.direction = LTR
+        self.direction = GSLTR
         self.mode = None
         self.cancel_operation()
         self.setStdCursor()
@@ -431,26 +348,23 @@ class DragToKern(SelectTool):
         Glyphs.redraw()
 
     @objc.python_method
-    def metricsAreLocked(self, layer):
+    def metricsAreLocked(self, layer) -> bool:
         cp1 = "Link Metrics With First Master"
         cp2 = "Link Metrics With Master"
-        if (
-            cp1 in layer.master.customParameters
-            or cp2 in layer.master.customParameters
-        ):
+        if cp1 in layer.master.customParameters or cp2 in layer.master.customParameters:
             return True
         return False
 
     @objc.python_method
-    def handleDrag(self, theEvent):
+    def handleDrag(self, theEvent) -> bool:
         """
         Get the current location while the mouse is dragging. Returns True if
         the view needs a redraw, i.e. the kerning or metrics were modified.
         """
         if self.layer2 is None:
-            return
+            return False
         if self.drag_start is None:
-            return
+            return False
 
         evc = self.editViewController()
         gv = evc.graphicView()
@@ -483,9 +397,7 @@ class DragToKern(SelectTool):
                 return False
 
             if self.mode == "kern":
-                applyKerning(
-                    self.layer1, self.layer2, delta, step, self.direction
-                )
+                applyKerning(self.layer1, self.layer2, delta, step, self.direction)
                 return False  # Kerning changes already trigger a redraw
 
             if self.mode == "LSB":
@@ -500,7 +412,7 @@ class DragToKern(SelectTool):
 
     def drawLayer_atPoint_asActive_attributes_(
         self, layer, layerOrigin, active, attributes
-    ):
+    ) -> None:
         gv = self.editViewController().graphicView()
         gv.drawLayer_atPoint_asActive_attributes_(
             layer, layerOrigin, active, attributes
@@ -517,20 +429,20 @@ class DragToKern(SelectTool):
         elif self.drawMeasurements:
             self._drawDraggingMeasurements(self.mode, gv, layer, layerOrigin)
 
-    def drawMetricsForLayer_atPoint_asActive_(
-        self, layer, layerOrigin, active
-    ):
+    def drawMetricsForLayer_atPoint_asActive_(self, layer, layerOrigin, active) -> None:
         pass
 
     @objc.python_method
-    def checkHandles(self, graphicView, layer, layerOrigin):
+    def checkHandles(
+        self, graphicView, layer, layerOrigin
+    ) -> tuple[tuple[str, float, float, float, float], tuple[float, float], int] | None:
         """
         Check if the mouse pointer is at a possible metrics handle location.
         Called on MOUSEMOVED via drawLayer_atPoint_asActive_attributes_.
         """
         theEvent = Glyphs.currentEvent()
         if theEvent is None:
-            return
+            return None
 
         self.mouse_position = graphicView.convertPoint_fromView_(
             theEvent.locationInWindow(), None
@@ -540,18 +452,20 @@ class DragToKern(SelectTool):
         )
 
     @objc.python_method
-    def checkHandleLocation(self, location, graphicView, layer, layerOrigin):
+    def checkHandleLocation(
+        self, location, graphicView, layer, layerOrigin
+    ) -> tuple[tuple[str, float, float, float, float], tuple[float, float], int] | None:
         """
         Check if the location of an event is at a possible metrics handle
         location.
         """
         if not self.doSpacing(graphicView):
-            return
+            return None
 
         try:
             master = layer.master
         except KeyError:
-            return
+            return None
 
         x, y = location
         scale = graphicView.scale()
@@ -563,17 +477,17 @@ class DragToKern(SelectTool):
 
         # Don't draw handles outside ascender/descender
         if y < desc or y > asc:
-            return
+            return None
 
         offsetX = x - layerOrigin.x
 
         if offsetX < 0 or offsetX > layerWidth:
             # Mouse is outside the glyph
-            return
+            return None
 
         if offsetX > SNAP_TOLERANCE and offsetX < layerWidth - SNAP_TOLERANCE:
             # Mouse is too far inside the glyph
-            return
+            return None
 
         if offsetX < SNAP_TOLERANCE:
             handle_x = (layerOrigin.x, SNAP_TOLERANCE)
@@ -601,7 +515,7 @@ class DragToKern(SelectTool):
         return metric, handle_x, width
 
     @objc.python_method
-    def _drawHandle(self, handle_x, metric):
+    def _drawHandle(self, handle_x, metric) -> None:
         if handle_x is None:
             return
         if metric is None:
@@ -623,7 +537,7 @@ class DragToKern(SelectTool):
     @objc.python_method
     def _drawDraggingMeasurements(
         self, metric, graphicView, layer, layerOrigin
-    ):
+    ) -> None:
         if layer != self.layer2 or self.layer2 is None:
             # Only draw labels at the layer being modified
             return
@@ -660,7 +574,7 @@ class DragToKern(SelectTool):
         self._drawDraggingMeasurement(pos, asc, desc)
 
     @objc.python_method
-    def _drawDraggingMeasurement(self, xPositions, asc, desc):
+    def _drawDraggingMeasurement(self, xPositions, asc, desc) -> None:
         top = DRAGGING_HANDLE_HEIGHT * LABEL_VERT_INNER_BIAS
         bot = DRAGGING_HANDLE_HEIGHT - top
         for x in xPositions:
@@ -680,7 +594,10 @@ class DragToKern(SelectTool):
             bezierPath.fill()
 
     @objc.python_method
-    def _drawDraggingTextLabel(self, metric, xPosition, asc, locked):
+    def _drawDraggingTextLabel(self, metric, xPosition, asc, locked) -> None:
+        if self.layer2 is None:
+            return
+
         if locked:
             shown_value = "🔒︎"
         else:
@@ -716,16 +633,12 @@ class DragToKern(SelectTool):
             return
 
         rect = NSRect(origin=(text_pt.x, text_pt.y), size=(bw, bh))
-        outer = NSRect(
-            origin=(text_pt.x - 2, text_pt.y - 1), size=(bw + 4, bh + 2)
-        )
+        outer = NSRect(origin=(text_pt.x - 2, text_pt.y - 1), size=(bw + 4, bh + 2))
         self.colorBox.set()
-        NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-            outer, 4, 4
-        ).fill()
+        NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(outer, 4, 4).fill()
         myString.drawInRect_withAttributes_(rect, attrs)
 
     @objc.python_method
-    def __file__(self):
+    def __file__(self) -> str:
         """Please leave this method unchanged"""
         return __file__
