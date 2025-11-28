@@ -19,7 +19,6 @@ from AppKit import (
 )
 from GlyphsApp import GSLTR, MOUSEMOVED, Glyphs
 from GlyphsApp.plugins import SelectTool
-from objc import super
 
 GlyphsToolSelect = NSClassFromString("GlyphsToolSelect")
 
@@ -197,7 +196,7 @@ class DragToKern(SelectTool):
             return
 
         # Other keys are handled by the super class
-        super().keyDown_(theEvent)
+        objc.super().keyDown_(theEvent)
 
     @objc.python_method
     def mouseDidMove(self, notification) -> None:
