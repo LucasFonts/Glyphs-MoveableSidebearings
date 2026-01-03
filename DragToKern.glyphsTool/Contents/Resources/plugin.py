@@ -186,7 +186,7 @@ class DragToKern(SelectTool):
             return
 
         # Other keys are handled by the super class
-        objc.super().keyDown_(theEvent)
+        objc.super(DragToKern, self).keyDown_(theEvent)
 
     @objc.python_method
     def mouseDidMove(self, notification) -> None:
