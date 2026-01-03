@@ -195,11 +195,7 @@ class DragToKern(SelectTool):
         layer.
         """
         if theEvent.clickCount() == 2:
-            wc = self.windowController()
-            wc.setToolForClass_(GlyphsToolSelect)
-            toolDelegate = wc.toolEventDelegate()
-            if toolDelegate.respondsToSelector_("selectGlyph:"):
-                toolDelegate.selectGlyph_(theEvent)
+            self.selectGlyph_(theEvent)
             return
         # Get the mouse click location and convert it to local coordinates
         evc = self.editViewController()
