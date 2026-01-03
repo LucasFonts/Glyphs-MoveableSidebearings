@@ -93,12 +93,10 @@ def handleException(composedLayers, layerIndex, c, direction=GSLTR) -> None:
 class DragToKern(SelectTool):
     @objc.python_method
     def settings(self) -> None:
-        self.name = Glyphs.localize(
-            {
-                "en": "Mouse Kerning and Spacing",
-                "de": "Unterschneidung und Zurichtung per Maus",
-            }
-        )
+        self.name = Glyphs.localize({
+            "en": "Mouse Kerning and Spacing",
+            "de": "Unterschneidung und Zurichtung per Maus",
+        })
         self.keyboardShortcut = "k"
         self.stdCursor = NSCursor.resizeLeftRightCursor()
         self.lckCursor = NSCursor.operationNotAllowedCursor()
@@ -150,26 +148,18 @@ class DragToKern(SelectTool):
     @objc.python_method
     def conditionalContextMenus(self) -> list[dict[str, Any]]:
         if self.drawMeasurements:
-            return [
-                {
-                    "name": Glyphs.localize(
-                        {
-                            "en": "Hide Measurements While Spacing",
-                        }
-                    ),
-                    "action": self.toggleMeasurements_,
-                }
-            ]
-        return [
-            {
-                "name": Glyphs.localize(
-                    {
-                        "en": "Show Measurements While Spacing",
-                    }
-                ),
+            return [{
+                "name": Glyphs.localize({
+                    "en": "Hide Measurements While Spacing",
+                }),
                 "action": self.toggleMeasurements_,
-            }
-        ]
+            }]
+        return [{
+            "name": Glyphs.localize({
+                "en": "Show Measurements While Spacing",
+            }),
+            "action": self.toggleMeasurements_,
+        }]
 
     def toggleMeasurements_(self, sender=None) -> None:
         self.drawMeasurements = not self.drawMeasurements
