@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 import objc
+from Foundation import NSClassFromString, NSPoint, NSRect, NSString
 from AppKit import (
     NSBezierPath,
-    NSClassFromString,
     NSColor,
     NSCursor,
     NSFont,
@@ -13,9 +13,6 @@ from AppKit import (
     NSFontWeightRegular,
     NSForegroundColorAttributeName,
     NSGradient,
-    NSPoint,
-    NSRect,
-    NSString,
 )
 from GlyphsApp import GSLTR, MOUSEMOVED, Glyphs
 from GlyphsApp.plugins import SelectTool
