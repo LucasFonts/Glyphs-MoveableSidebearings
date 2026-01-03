@@ -604,7 +604,7 @@ class DragToKern(SelectTool):
             ),
             NSForegroundColorAttributeName: self.colorLabel,
         }
-        myString = NSString.string().stringByAppendingString_(shown_value)
+        myString = NSString.stringWithString_(shown_value)
         bbox = myString.sizeWithAttributes_(attrs)
         bw = bbox.width
         bh = bbox.height
