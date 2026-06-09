@@ -183,7 +183,8 @@ class DragToKern(SelectTool):
             # Get the mouse location and convert it to local coordinates
             evc = self.editViewController()
             gv = evc.graphicView()
-            loc = gv.convertPoint_fromView_(theEvent.locationInWindow(), None)
+            mouseInWindow = gv.window().mouseLocationOutsideOfEventStream()
+            loc = gv.convertPoint_fromView_(mouseInWindow, None)
             # Which layer is at the mouse click location?
             layerIndex = gv.layerIndexForPoint_(loc)
             composedLayers = evc.composedLayers
