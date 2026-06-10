@@ -65,24 +65,24 @@ def handleException(composedLayers, layerIndex, c, direction=GSLTR) -> None:
 
     if c == "d":
         # Both layers should get the exception
-        layer1.setNextKerningExeption_forLayer_direction_(True, layer2, direction)
-        layer2.setPreviousKerningExeption_forLayer_direction_(True, layer1, direction)
+        layer1.setNextKerningException_forLayer_direction_(True, layer2, direction)
+        layer2.setPreviousKerningException_forLayer_direction_(True, layer1, direction)
     elif c == "a":
         # First layer should get exception
-        layer1.setNextKerningExeption_forLayer_direction_(True, layer2, direction)
+        layer1.setNextKerningException_forLayer_direction_(True, layer2, direction)
     elif c == "s":
         # First layer should get exception
-        layer2.setPreviousKerningExeption_forLayer_direction_(True, layer1, direction)
+        layer2.setPreviousKerningException_forLayer_direction_(True, layer1, direction)
     elif c == "D":
         # Remove kerning exception for both layers
-        layer1.setNextKerningExeption_forLayer_direction_(False, layer2, direction)
-        layer2.setPreviousKerningExeption_forLayer_direction_(False, layer1, direction)
+        layer1.setNextKerningException_forLayer_direction_(False, layer2, direction)
+        layer2.setPreviousKerningException_forLayer_direction_(False, layer1, direction)
     elif c == "A":
         # Remove kerning exception for first layer
-        layer1.setNextKerningExeption_forLayer_direction_(False, layer2, direction)
+        layer1.setNextKerningException_forLayer_direction_(False, layer2, direction)
     elif c == "S":
         # Remove kerning exception for second layer
-        layer2.setPreviousKerningExeption_forLayer_direction_(False, layer1, direction)
+        layer2.setPreviousKerningException_forLayer_direction_(False, layer1, direction)
 
 
 class DragToKern(SelectTool):
